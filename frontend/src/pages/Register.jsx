@@ -84,7 +84,7 @@ export default function Register() {
               <span className="auth-hero-gradient">journey.</span>
             </h1>
             <p className="auth-hero-subtitle">
-              Create an account and unlock the full power of AuthFlow in seconds.
+              Create an account and unlock the full power of CipherX in seconds.
             </p>
 
             <div className="auth-feature-list">
