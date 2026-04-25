@@ -1,5 +1,16 @@
+#Personal Data Privacy Analyzer 
+Problem 
+Users often unknowingly share sensitive personal information in documents, increasing 
+the risk of data breaches and misuse. 
+Challenge 
+Create a tool that: 
+• Scans uploaded files (PDFs, images, documents) 
+• Identifies sensitive data (e.g., Aadhaar, PAN, phone numbers, emails) 
+• Highlights or masks sensitive information 
+Goal 
+Help users safeguard personal data and promote responsible data sharing practices. 
 # Privacy-First Secure Sharing Platform
-
+---
 A smart communication platform that **detects, warns, and protects sensitive information** before sharing files or images.
 
 ---
