@@ -246,10 +246,89 @@ const handleEncrypt = async (item) => {
     );
   };
 
+  const handleSelectCipherX = () => {
+    setActiveChat("cipherx");
+    setMessages([{
+      id: "welcome-cipherx",
+      senderId: "cipherx",
+      text: "Hello! I am CipherX, your advanced AI assistant. How can I help you today?",
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      isSent: false,
+      isAi: true
+    }]);
+  };
+
   // 🔹 Send message
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
-    if (!messageInput.trim() || !socket || !activeChat) return;
+    if (!messageInput.trim() || !activeChat) return;
+
+    if (activeChat === "cipherx") {
+      const userMsg = {
+        id: Date.now(),
+        senderId: "me",
+        text: messageInput,
+        time: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isSent: true,
+      };
+
+      setMessages(prev => [...prev, userMsg]);
+
+      const query = messageInput; // 🔥 IMPORTANT
+      setMessageInput("");
+
+      try {
+        const res = await fetch("http://localhost:5000/api/rag", { 
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ question: query })
+        });
+
+        const data = await res.json();
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            senderId: "cipherx",
+            text: data.answer || "No response from AI",
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isSent: false,
+            isAi: true
+          }
+        ]);
+
+      } catch (err) {
+        console.error("RAG ERROR:", err);
+
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now() + 2,
+            senderId: "cipherx",
+            text: "⚠️ Failed to fetch AI response",
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            isSent: false,
+            isAi: true
+          }
+        ]);
+      }
+
+      return;
+    }
+
+    if (!socket) return;
 
     socket.emit("message:send", {
       roomId: activeChat,
@@ -276,6 +355,7 @@ const handleEncrypt = async (item) => {
   };
 
   const activeRoom = rooms.find((r) => r._id === activeChat);
+  const isCipherX = activeChat === "cipherx";
 
   return (
     <div className="shell">
@@ -332,6 +412,46 @@ const handleEncrypt = async (item) => {
             </div>
           </div>
         )}
+
+        <div className="sidebar-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "15px" }}>
+          <span>Pinned AI</span>
+        </div>
+
+        <div 
+          className={`history-item ${activeChat === "cipherx" ? "active" : ""}`}
+          onClick={handleSelectCipherX}
+          style={activeChat === "cipherx" ? {
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)",
+            borderLeft: "4px solid #8b5cf6",
+            marginBottom: "10px",
+            padding: "12px"
+          } : {
+            borderLeft: "4px solid transparent",
+            marginBottom: "10px",
+            padding: "12px"
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
+            <div style={{
+              width: "42px", height: "42px", borderRadius: "12px",
+              background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              color: "#fff", fontSize: "20px",
+              boxShadow: "0 4px 12px rgba(139, 92, 246, 0.3)"
+            }}>
+              ✨
+            </div>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ fontWeight: "600", fontSize: "15px", color: activeChat === "cipherx" ? "#8b5cf6" : "inherit", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                CipherX
+                <span style={{ fontSize: "10px", background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", color: "#fff", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>Beta</span>
+              </div>
+              <div style={{ fontSize: "13px", opacity: 0.7, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginTop: "2px" }}>
+                Ask me anything...
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div className="sidebar-label">Recent Chats</div>
 
@@ -629,20 +749,30 @@ const handleEncrypt = async (item) => {
             {/* Top bar */}
             <div className="topbar">
               <div className="topbar-title">
-                {activeRoom 
+                {isCipherX ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{
+                        width: "28px", height: "28px", borderRadius: "8px",
+                        background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontWeight: "bold", fontSize: "14px"
+                    }}>✨</div>
+                    <span style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontWeight: "bold" }}>CipherX AI</span>
+                  </div>
+                ) : activeRoom 
                   ? (activeRoom.isPrivate && activeRoom.members
                       ? activeRoom.members.find(m => m._id !== user?.id)?.name || "User"
                       : activeRoom.name) 
                   : "Select a Chat"}
               </div>
               <div className="status-dot">
-                <div className="dot"></div>Connected
+                <div className="dot" style={isCipherX ? { background: "#8b5cf6", boxShadow: "0 0 8px #8b5cf6" } : {}}></div>{isCipherX ? "Online" : "Connected"}
               </div>
             </div>
 
             {/* Messages */}
-            <div className="messages">
-              {!activeRoom ? (
+            <div className="messages" style={isCipherX ? { backgroundImage: "radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 70%)" } : {}}>
+              {!activeRoom && !isCipherX ? (
                 <div className="welcome">
                   <div className="welcome-icon">💬</div>
                   <h1>Welcome to CipherChat</h1>
@@ -650,12 +780,26 @@ const handleEncrypt = async (item) => {
                 </div>
               ) : (
                 <>
+                  {isCipherX && messages.length === 1 && (
+                    <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                      <div style={{ fontSize: "64px", marginBottom: "20px", textShadow: "0 0 20px rgba(139, 92, 246, 0.4)" }}>✨</div>
+                      <h2 style={{ background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", marginBottom: "15px", fontSize: "28px" }}>How can I assist you today?</h2>
+                      <div style={{ display: "flex", gap: "10px", justifyContent: "center", flexWrap: "wrap", maxWidth: "600px", margin: "0 auto" }}>
+                         {["Summarize a secure file", "Check for data leaks", "Draft an encrypted message"].map(text => (
+                           <div key={text} onClick={() => setMessageInput(text)} style={{ padding: "10px 16px", background: "rgba(139, 92, 246, 0.1)", color: "#8b5cf6", borderRadius: "20px", cursor: "pointer", fontSize: "14px", border: "1px solid rgba(139, 92, 246, 0.2)", transition: "all 0.2s", fontWeight: "500" }} onMouseEnter={(e) => e.currentTarget.style.background = "rgba(139, 92, 246, 0.2)"} onMouseLeave={(e) => e.currentTarget.style.background = "rgba(139, 92, 246, 0.1)"}>
+                             {text}
+                           </div>
+                         ))}
+                      </div>
+                    </div>
+                  )}
+
                   {messages.map((msg) => (
                     <div key={msg.id} className={`msg-row ${msg.isSent ? "sent" : "received"}`}>
-                      <div className={`avatar ${msg.isSent ? "sent" : "received"}`}>
-                        {msg.isSent ? "👤" : "💬"}
+                      <div className={`avatar ${msg.isSent ? "sent" : "received"}`} style={msg.isAi ? { background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", color: "#fff", border: "none" } : {}}>
+                        {msg.isSent ? "👤" : msg.isAi ? "✨" : "💬"}
                       </div>
-                      <div className={`bubble ${msg.isSent ? "sent" : "received"}`}>
+                      <div className={`bubble ${msg.isSent ? "sent" : "received"}`} style={msg.isAi ? { background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)", border: "1px solid rgba(139, 92, 246, 0.2)", color: "inherit", borderTopLeftRadius: "4px" } : {}}>
                         {msg.type === "file" || msg.text.includes("/uploads/") ? (
                           <a href={msg.text} target="_blank">📎 Open File</a>
                         ) : (
@@ -739,17 +883,19 @@ const handleEncrypt = async (item) => {
 
                 <textarea
                   rows={1}
-                  placeholder={activeRoom ? "Type a message..." : "Select a room to chat..."}
+                  placeholder={isCipherX ? "Message CipherX..." : activeRoom ? "Type a message..." : "Select a room to chat..."}
                   value={messageInput}
                   onChange={autoResize}
                   onKeyDown={handleKey}
-                  disabled={!activeRoom}
+                  disabled={!activeRoom && !isCipherX}
+                  style={isCipherX ? { border: "1px solid rgba(139, 92, 246, 0.3)", boxShadow: "0 2px 12px rgba(139, 92, 246, 0.05)" } : {}}
                 />
                 <button
                   className="send-btn"
                   onClick={handleSendMessage}
-                  disabled={!messageInput.trim() || !activeRoom}
+                  disabled={!messageInput.trim() || (!activeRoom && !isCipherX)}
                   title="Send"
+                  style={isCipherX ? { background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", color: "#fff", borderColor: "transparent" } : {}}
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3">
                     <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" strokeLinecap="round" strokeLinejoin="round" />

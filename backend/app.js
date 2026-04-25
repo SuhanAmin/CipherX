@@ -57,7 +57,8 @@ app.use("/api/users", userRoutes);
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
-
+const ragRoutes = require("./routes/rag");
+app.use("/api", ragRoutes);
 // ✅ SOCKET AUTH
 io.use(async (socket, next) => {
   try {
@@ -117,18 +118,20 @@ io.on("connection", async (socket) => {
 
   // Join room
   socket.on("room:join", async ({ roomId }) => {
-    if (!roomId) return;
+  if (!roomId) return;
 
-    const room = await Room.findOne({
-      _id: roomId,
-      members: userId,
-    });
+  if (!mongoose.Types.ObjectId.isValid(roomId)) return;
 
-    if (!room) return;
-
-    socket.join(`room:${roomId}`);
-    socket.emit("room:joined", { roomId });
+  const room = await Room.findOne({
+    _id: roomId,
+    members: userId,
   });
+
+  if (!room) return;
+
+  socket.join(`room:${roomId}`);
+  socket.emit("room:joined", { roomId });
+});
 
   // Typing
   socket.on("typing", ({ roomId, isTyping }) => {
@@ -140,36 +143,55 @@ io.on("connection", async (socket) => {
   });
 
   // Send message
-  socket.on("message:send", async ({ roomId, content, type }) => {
-  if (!roomId || !content) return;
+  const mongoose = require("mongoose");
 
-  const room = await Room.findOne({
-    _id: roomId,
-    members: userId,
-  });
+socket.on("message:send", async ({ roomId, content, type }) => {
+  try {
+    // 🚫 BLOCK AI CHAT (cipherx)
+    if (roomId === "cipherx") {
+      console.log("🤖 AI chat detected → skipping DB");
+      return;
+    }
 
-  if (!room) return;
+    // 🚫 INVALID OBJECTID PROTECTION
+    if (!mongoose.Types.ObjectId.isValid(roomId)) {
+      console.log("⚠️ Invalid roomId:", roomId);
+      return;
+    }
 
-  const message = await Message.create({
-    roomId,
-    senderId: userId,
-    content,
-    type: type || "text", // 👈 important
-  });
+    if (!roomId || !content) return;
 
-  const populated = await message.populate("senderId", "name");
+    const room = await Room.findOne({
+      _id: roomId,
+      members: userId,
+    });
 
-  io.to(`room:${roomId}`).emit("message:new", {
-  _id: message._id,
-  roomId,
-  type: message.type || "text", // 👈 ADD THIS
-  sender: {
-    _id: populated.senderId._id,
-    name: populated.senderId.name,
-  },
-  content: message.content,
-  createdAt: message.createdAt,
-});
+    if (!room) return;
+
+    const message = await Message.create({
+      roomId,
+      senderId: userId,
+      content,
+      type: type || "text",
+    });
+
+    const populated = await message.populate("senderId", "name");
+
+    io.to(`room:${roomId}`).emit("message:new", {
+      _id: message._id,
+      roomId,
+      type: message.type || "text",
+      sender: {
+        _id: populated.senderId._id,
+        name: populated.senderId.name,
+      },
+      content: message.content,
+      createdAt: message.createdAt,
+    });
+
+  } catch (err) {
+    console.error("❌ SOCKET ERROR:", err.message);
+  }
 });
 
   // Disconnect

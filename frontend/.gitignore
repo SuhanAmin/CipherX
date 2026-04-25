@@ -23,3 +23,9 @@ dist-ssr
 *.sln
 *.sw?
 ../backend/.env
+.env
+node_modules/
+uploads/
+faiss_store/
+__pycache__/
+*.pyc
