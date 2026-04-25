@@ -124,7 +124,7 @@ Generates a safe, shareable version of the file.
 ### AI & Processing
 - Tesseract OCR  
 - Regex  
-- NLP / AI models (for detection & summarization)  
+- AI models (for detection & summarization)  
 - PIL (image handling)  
 
 ---
