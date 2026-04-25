@@ -35,8 +35,8 @@ def query_rag(q: Query):
     try:
         answer = rag.search_and_summarize(q.question)
 
-        print("QUESTION:", q.question)
-        print("ANSWER:", answer)
+        #print("QUESTION:", q.question)
+        #print("ANSWER:", answer)
 
         return {
             "answer": answer if answer else "No response generated"

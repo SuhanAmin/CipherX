@@ -48,8 +48,8 @@ class RAGSearch:
                 timeout=60
             )
 
-            print("📡 STATUS:", res.status_code)
-            print("📡 RAW TEXT:", res.text)
+            #print("📡 STATUS:", res.status_code)
+            #print("📡 RAW TEXT:", res.text)
 
             data = res.json()
             response = data.get("response", "").strip()
@@ -90,12 +90,14 @@ class RAGSearch:
         from src.data_loader import load_single_file
 
         # 🔥 FIX PATH
-        if not os.path.isabs(file_path):
-            file_path = os.path.join(BASE_DIR, "..", file_path)
-
         file_path = os.path.abspath(file_path)
 
-        print("📂 Ingesting:", file_path)
+        #print("📂 Ingesting:", file_path)
+
+        if not os.path.exists(file_path):
+            return {"error": f"File not found: {file_path}"}
+
+        
 
         docs = load_single_file(file_path)
 
