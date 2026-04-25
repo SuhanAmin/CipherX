@@ -93,7 +93,7 @@ Upload File
 ↓
 Text Extraction (OCR / Parser)
 ↓
-Content Analysis (Regex + AI)
+Content Analysis (ragex+AI)
 ↓
 Sensitive Data Detection
 ↓
