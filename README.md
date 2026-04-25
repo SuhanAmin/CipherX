@@ -119,7 +119,7 @@ Generates a safe, shareable version of the file.
 - HTML/CSS  
 
 ### Backend
-- Python (FastAPI / Flask)
+- NodeJS
 
 ### AI & Processing
 - Tesseract OCR  
