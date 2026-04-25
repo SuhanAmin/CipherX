@@ -1,0 +1,70 @@
+
+
+N SUHAN AMIN 
+XXXXXXXXX@gmail.com 
++91 9036042089 
+GitHub: https://github.com/SuhanAmin/   
+ 
+Summary 
+ 
+A motivated Computer Science student with a solid foundation in full-stack web development and database 
+management. Proficient in JavaScript, React, Node.js, Express.js, and MongoDB, with a strong interest in building 
+scalable, high-performance web applications. Eager to take part in real-world challenges and contribute effectively to 
+a collaborative development team. Seeking opportunities to grow as a developer and gain hands-on experience in a 
+dynamic tech environment. 
+ 
+Technical skills 
+ 
+Programming  
+JavaScript, SQL 
+Web Development  
+HTML, CSS, Node.js, React 
+EJS, RESTful API’s 
+Database Management  
+MySQL, MongoDB 
+ 
+Version Control  
+Git, GitHub 
+ 
+ 
+Projects 
+ 
+1. Online E-Mart store 
+[HTML, CSS, JavaScript, EJS,   
+Express, MongoDB] 
+ 
+A Full-stack Online delivery store to purchase day-to-day groceries. 
+User can track their current orders in map. Also, live 
+https://groccery-be73.onrender.com . 
+2. Pet Adoption System 
+[HTML, CSS, JavaScript, EJS,    
+Express, MongoDB] 
+ 
+A Full-stack web-based platform using to adopt pets or rehome 
+their pet with features of nearby rescuers and also purchasing pet 
+accessories 
+ 
+3. Zeudo Media 
+[MongoDB, Express, React, Node.js] 
+A full-featured MERN stack social app with real-time chat, AI 
+chatbot, posts, likes, and comments 
+ 
+4. News Forecast 
+[HTML, CSS, JavaScript, React, 
+Express, MongoDB] 
+ 
+A MERN Stack website where user can upload the current news in 
+the form of posts and also get current news across the globe. 
+Educational Qualification 
+ 
+• Bachelors of Computer Science and Application 
+Canara College, Mangalore           (8.93 CGPA, 2025) 
+• Pre-University  
+Canara Pre-University College, Mangalore         (89.83%, 2022) 
+• SSLC  
+Canara High School, Mangalore           (88.16%, 2020) 
+Languages 
+ 
+• English 
+• Hindi 
+• Kannada 

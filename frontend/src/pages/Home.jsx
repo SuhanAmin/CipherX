@@ -27,6 +27,12 @@ export default function Home() {
   const [showAttachMenu, setShowAttachMenu] = useState(false);
 const [modifiedContent, setModifiedContent] = useState("");
 const [maskedItems, setMaskedItems] = useState([]);
+
+  // 🔹 Analytics state
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
   const BACKEND_URL = "http://localhost:5000";
 
   // 🔹 API helper
@@ -96,44 +102,39 @@ const [maskedItems, setMaskedItems] = useState([]);
   return value;
 };
 
-const handleEncrypt = async (item) => {
+const handleToggleMask = async (item) => {
   if (!scanResult) return;
 
-  const masked = maskValue(item.value, item.type);
-
-  let currentContent = modifiedContent;
-  if (!currentContent) {
-    if (previewFile?.type === "application/pdf" || previewFile?.type?.startsWith("image/")) {
-      currentContent = scanResult.content || "";
-    } else if (previewFile) {
-      try {
-        currentContent = await previewFile.text();
-      } catch (e) {
-        console.error("Failed to read file text", e);
-        currentContent = previewFile.name || "";
-      }
-    }
-  }
-
-  let updated = currentContent.replaceAll(item.value, masked);
-
-  setModifiedContent(updated);
-
-  // Track the masked items for advanced PDF redaction
-  setMaskedItems(prev => {
-    if (!prev.some(i => i.original === item.value)) {
-      return [...prev, { original: item.value, masked: masked }];
-    }
-    return prev;
-  });
-
-  // Update UI instantly
   setScanResult(prev => ({
     ...prev,
-    detected: prev.detected.map(d =>
-      d.value === item.value ? { ...d, value: masked } : d
-    )
+    detected: prev.detected.map(d => {
+      if (d.original === item.original) {
+        const newMaskedState = !d.isMasked;
+
+        return {
+          ...d,
+          isMasked: newMaskedState,
+          value: newMaskedState ? d.masked : d.original
+        };
+      }
+      return d;
+    })
   }));
+
+  // 🔥 Update content accordingly
+  let currentContent = modifiedContent || scanResult.content || "";
+
+  let updatedContent = currentContent;
+
+  if (!item.isMasked) {
+    // MASK
+    updatedContent = currentContent.replaceAll(item.original, item.masked);
+  } else {
+    // UNMASK
+    updatedContent = currentContent.replaceAll(item.masked, item.original);
+  }
+
+  setModifiedContent(updatedContent);
 };
   // 🔹 Load rooms
   useEffect(() => {
@@ -350,10 +351,135 @@ const handleEncrypt = async (item) => {
     }
   };
 
+  const handleLogout = async () => {
+  try {
+    await fetch("http://localhost:5000/api/logout", {
+      method: "POST",
+      credentials: "include"
+    });
+  } catch (err) {
+    console.error("Logout error:", err);
+  }
+
+  localStorage.removeItem("token");
+  navigate("/");
+};
+
   const autoResize = (e) => {
     e.target.style.height = 'auto';
     e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
     setMessageInput(e.target.value);
+  };
+
+  // 🔹 Analytics helpers
+  const TYPE_META = {
+    phone:  { icon: "📱", label: "Phone Numbers", color: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #2563eb)" },
+    email:  { icon: "✉️", label: "Email Addresses", color: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)" },
+    pan:    { icon: "🪪", label: "PAN Cards",       color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)" },
+    aadhaar:{ icon: "🆔", label: "Aadhaar Numbers", color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #dc2626)" },
+    bank:   { icon: "🏦", label: "Bank Details",    color: "#10b981", gradient: "linear-gradient(135deg, #10b981, #059669)" },
+  };
+
+  const fetchAnalytics = async () => {
+    setAnalyticsLoading(true);
+    try {
+      const data = await api("/api/analytics");
+      setAnalyticsData(data);
+    } catch (err) {
+      console.error("Failed to fetch analytics:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
+  const openAnalytics = () => {
+    setShowAnalytics(true);
+    fetchAnalytics();
+  };
+
+  const VALID_LOG_TYPES = ["phone", "email", "pan", "aadhaar", "bank"];
+
+  const logUnmaskedItems = async (detected) => {
+    if (!detected || detected.length === 0) return;
+    // Only log items that are unmasked AND have a valid type AND have a masked value
+    const unmasked = detected.filter(d =>
+      !d.isMasked &&
+      VALID_LOG_TYPES.includes(d.type) &&
+      (d.masked || d.value)   // must have some value to store
+    );
+    if (unmasked.length === 0) return;
+    try {
+      await api("/api/analytics/log", {
+        method: "POST",
+        body: JSON.stringify({ items: unmasked }),
+      });
+    } catch (err) {
+      console.error("Failed to log unmasked items:", err);
+    }
+  };
+
+  // 🔹 File card helpers
+  const getFileInfo = (url) => {
+    const filename = decodeURIComponent(url.split("/").pop().split("?")[0]) || "file";
+    const ext = filename.split(".").pop().toLowerCase();
+    const imageExts = ["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg"];
+    const isImage = imageExts.includes(ext);
+    const isPdf = ext === "pdf";
+    const isText = ["txt", "csv", "log", "md", "json"].includes(ext);
+    const isSecured = filename.includes("secured");
+    let type = "generic";
+    if (isImage) type = "image";
+    else if (isPdf) type = "pdf";
+    else if (isText) type = "text";
+    return { filename, ext, type, isSecured, url };
+  };
+
+  const renderFileCard = (fileUrl, isSent) => {
+    const file = getFileInfo(fileUrl);
+    const fullUrl = fileUrl.startsWith("http") ? fileUrl : `${BACKEND_URL}${fileUrl}`;
+
+    if (file.type === "image") {
+      return (
+        <a href={fullUrl} target="_blank" rel="noreferrer" className="file-card file-card-image">
+          <div className="file-card-img-wrap">
+            <img src={fullUrl} alt={file.filename} className="file-card-img" loading="lazy" />
+            <div className="file-card-img-overlay">
+              {file.isSecured && <span className="file-secured-badge">🔒 Secured</span>}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            </div>
+          </div>
+          <div className="file-card-meta">
+            <span className="file-card-name">{file.filename.length > 28 ? file.filename.slice(0, 25) + "..." : file.filename}</span>
+            <span className="file-card-ext">{file.ext.toUpperCase()}</span>
+          </div>
+        </a>
+      );
+    }
+
+    const iconMap = {
+      pdf:     { emoji: "📕", color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #dc2626)" },
+      text:    { emoji: "📄", color: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #2563eb)" },
+      generic: { emoji: "📁", color: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)" },
+    };
+    const icon = iconMap[file.type] || iconMap.generic;
+
+    return (
+      <a href={fullUrl} target="_blank" rel="noreferrer" className={`file-card file-card-doc ${isSent ? "file-card-sent" : ""}`}>
+        <div className="file-card-icon" style={{ background: icon.gradient }}>
+          <span>{icon.emoji}</span>
+        </div>
+        <div className="file-card-info">
+          <span className="file-card-name">{file.filename.length > 24 ? file.filename.slice(0, 21) + "..." : file.filename}</span>
+          <div className="file-card-detail">
+            <span className="file-card-ext">{file.ext.toUpperCase()} File</span>
+            {file.isSecured && <span className="file-secured-badge">🔒 Secured</span>}
+          </div>
+        </div>
+        <div className="file-card-dl">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </div>
+      </a>
+    );
   };
 
   const activeRoom = rooms.find((r) => r._id === activeChat);
@@ -455,7 +581,17 @@ const handleEncrypt = async (item) => {
           </div>
         </div>
 
-        <div className="sidebar-label">Recent Chats</div>
+        <div className="sidebar-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Recent Chats</span>
+        </div>
+
+        <button className="analytics-sidebar-btn" onClick={openAnalytics}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 20V10M12 20V4M6 20v-6" />
+          </svg>
+          Data Analytics
+          <span className="analytics-badge">🔒</span>
+        </button>
 
         <div className="history-list">
           {rooms.map((room) => {
@@ -475,9 +611,18 @@ const handleEncrypt = async (item) => {
         </div>
 
         <div className="sidebar-footer">
-          <span>{user?.name || "User"}</span>
-          <span style={{ color: "#34d399" }}>Online</span>
-        </div>
+  <div style={{ display: "flex", flexDirection: "column" }}>
+    <span>{user?.name || "User"}</span>
+    <span style={{ color: "#34d399", fontSize: "11px" }}>Online</span>
+  </div>
+
+  <button className="logout-btn" onClick={handleLogout} title="Logout">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M16 17l5-5-5-5M21 12H9" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M13 5H5a2 2 0 00-2 2v10a2 2 0 002 2h8" strokeLinecap="round"/>
+    </svg>
+  </button>
+</div>
       </aside>
 
       {/* ═══ MAIN ═══ */}
@@ -517,11 +662,13 @@ const handleEncrypt = async (item) => {
                   try {
                     const formData = new FormData();
 
-                    // ✅ SECURE DOCUMENT CASE (PDFs & Images)
-                    if ((previewFile?.type === "application/pdf" || previewFile?.type?.startsWith("image/")) && maskedItems.length > 0) {
+                    // ✅ SECURE DOCUMENT CASE (PDFs & Images with masking)
+                    // Use scanResult.detected items where isMasked === true
+                    const activeMaskedItems = (scanResult?.detected || []).filter(d => d.isMasked);
+                    if ((previewFile?.type === "application/pdf" || previewFile?.type?.startsWith("image/")) && activeMaskedItems.length > 0) {
                       const formDataMask = new FormData();
                       formDataMask.append("file", previewFile);
-                      formDataMask.append("maskedItems", JSON.stringify(maskedItems));
+                      formDataMask.append("maskedItems", JSON.stringify(activeMaskedItems));
 
                       const resMask = await fetch("http://localhost:5000/api/mask-file", {
                         method: "POST",
@@ -552,17 +699,22 @@ const handleEncrypt = async (item) => {
 
                       formData.append("file", blob, filename);
                     }
-                    // ✅ TEXT CASE (or any other modified content)
-                    else if (modifiedContent) {
-                      const blob = new Blob([modifiedContent], { type: "text/plain" });
+                    // ✅ TEXT CASE — only for actual text files (NOT pdfs or images)
+                    else if (
+                      modifiedContent &&
+                      !previewFile?.type?.startsWith("image/") &&
+                      previewFile?.type !== "application/pdf"
+                    ) {
+                      const originalExt = previewFile.name?.split(".").pop() || "txt";
+                      const blob = new Blob([modifiedContent], { type: previewFile.type || "text/plain" });
 
                       const filename = previewFile.name
-                        ? previewFile.name.replace(/\.[^/.]+$/, "") + "-secured.txt"
-                        : "secured.txt";
+                        ? previewFile.name.replace(/\.[^/.]+$/, "") + `-secured.${originalExt}`
+                        : `secured.${originalExt}`;
 
                       formData.append("file", blob, filename);
                     }
-                    // ✅ DEFAULT
+                    // ✅ DEFAULT — send original file unchanged
                     else {
                       formData.append("file", previewFile);
                     }
@@ -589,7 +741,12 @@ const handleEncrypt = async (item) => {
 
                     console.log("Uploaded file URL:", data.fileUrl);
 
-                    // 2️⃣ Send via socket
+                    // 2️⃣ Log unmasked sensitive data for analytics
+                    if (scanResult?.detected) {
+                      await logUnmaskedItems(scanResult.detected);
+                    }
+
+                    // 3️⃣ Send via socket
                     socket.emit("message:send", {
                       roomId: activeChat,
                       content: data.fileUrl,
@@ -650,10 +807,17 @@ const handleEncrypt = async (item) => {
               .map((p, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>📱 {p.value}</span>
-                  <button onClick={() => handleEncrypt(p)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Encrypt
-                  </button>
+                  <button
+  onClick={() => handleToggleMask(p)}
+  style={{
+    background: p.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {p.isMasked ? "Unmask" : "Mask"}
+</button>
                 </div>
               ))}
           </div>
@@ -670,10 +834,17 @@ const handleEncrypt = async (item) => {
               .map((e, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>✉️ {e.value}</span>
-                  <button onClick={() => handleEncrypt(e)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Encrypt
-                  </button>
+                  <button
+  onClick={() => handleToggleMask(e)}
+  style={{
+    background: e.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {e.isMasked ? "Unmask" : "Mask"}
+</button>
                 </div>
               ))}
           </div>
@@ -690,10 +861,17 @@ const handleEncrypt = async (item) => {
               .map((p, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>🆔 {p.value}</span>
-                  <button onClick={() => handleEncrypt(p)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Encrypt
-                  </button>
+                  <button
+  onClick={() => handleToggleMask(p)}
+  style={{
+    background: p.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {p.isMasked ? "Unmask" : "Mask"}
+</button>
                 </div>
               ))}
           </div>
@@ -710,10 +888,17 @@ const handleEncrypt = async (item) => {
               .map((a, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>📄 {a.value}</span>
-                  <button onClick={() => handleEncrypt(a)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Encrypt
-                  </button>
+                  <button
+  onClick={() => handleToggleMask(a)}
+  style={{
+    background: a.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {a.isMasked ? "Unmask" : "Mask"}
+</button>
                 </div>
               ))}
           </div>
@@ -730,10 +915,17 @@ const handleEncrypt = async (item) => {
               .map((b, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>💳 {b.value}</span>
-                  <button onClick={() => handleEncrypt(b)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                    Encrypt
-                  </button>
+                 <button
+  onClick={() => handleToggleMask(b)}
+  style={{
+    background: b.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {b.isMasked ? "Unmask" : "Mask"}
+</button>
                 </div>
               ))}
           </div>
@@ -780,9 +972,29 @@ const handleEncrypt = async (item) => {
             <div className="messages" style={isCipherX ? { backgroundImage: "radial-gradient(circle at center, rgba(139, 92, 246, 0.03) 0%, transparent 70%)" } : {}}>
               {!activeRoom && !isCipherX ? (
                 <div className="welcome">
-                  <div className="welcome-icon">💬</div>
-                  <h1>Welcome to CipherChat</h1>
-                  <p>Select a recent chat from the left or start a new conversation. Enjoy secure, seamless, and lightning-fast messaging.</p>
+                  <div className="welcome-particles">
+                    <div className="particle p1"></div>
+                    <div className="particle p2"></div>
+                    <div className="particle p3"></div>
+                    <div className="particle p4"></div>
+                  </div>
+                  <div className="welcome-icon">🛡️</div>
+                  <h1 className="welcome-heading">Welcome to <span className="welcome-brand">CipherChat</span></h1>
+                  <p className="welcome-sub">End-to-end encrypted messaging with AI-powered security intelligence.</p>
+                  <div className="welcome-features">
+                    <div className="welcome-feature-card">
+                      <span className="wf-icon">🔒</span>
+                      <span className="wf-label">Encrypted Files</span>
+                    </div>
+                    <div className="welcome-feature-card">
+                      <span className="wf-icon">🤖</span>
+                      <span className="wf-label">AI Assistant</span>
+                    </div>
+                    <div className="welcome-feature-card">
+                      <span className="wf-icon">📊</span>
+                      <span className="wf-label">Data Analytics</span>
+                    </div>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -805,9 +1017,9 @@ const handleEncrypt = async (item) => {
                       <div className={`avatar ${msg.isSent ? "sent" : "received"}`} style={msg.isAi ? { background: "linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)", color: "#fff", border: "none" } : {}}>
                         {msg.isSent ? "👤" : msg.isAi ? "✨" : "💬"}
                       </div>
-                      <div className={`bubble ${msg.isSent ? "sent" : "received"}`} style={msg.isAi ? { background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)", border: "1px solid rgba(139, 92, 246, 0.2)", color: "inherit", borderTopLeftRadius: "4px" } : {}}>
+                      <div className={`bubble ${msg.isSent ? "sent" : "received"} ${(msg.type === "file" || msg.text.includes("/uploads/")) ? "bubble-file" : ""}`} style={msg.isAi ? { background: "linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%)", border: "1px solid rgba(139, 92, 246, 0.2)", color: "inherit", borderTopLeftRadius: "4px" } : {}}>
                         {msg.type === "file" || msg.text.includes("/uploads/") ? (
-                          <a href={msg.text} target="_blank">📎 Open File</a>
+                          renderFileCard(msg.text, msg.isSent)
                         ) : (
                           msg.text
                         )}
@@ -878,7 +1090,20 @@ const handleEncrypt = async (item) => {
                       });
                       const data = await res.json();
                       console.log("Scan result:", data);
-                      setScanResult(data);
+                      setScanResult({
+                        ...data,
+                        detected: data.detected.map(d => {
+                          const masked = maskValue(d.value, d.type);
+
+                          return {
+                            ...d,
+                            original: d.value,
+                            masked: masked,
+                            isMasked: false,
+                            value: d.value
+                          };
+                        })
+                      });
                     } catch (err) {
                       console.error(err);
                     } finally {
@@ -916,6 +1141,178 @@ const handleEncrypt = async (item) => {
           </>
         )}
       </div>
+      {/* ═══ ANALYTICS MODAL ═══ */}
+      {showAnalytics && (
+        <div className="analytics-overlay" onClick={() => setShowAnalytics(false)}>
+          <div className="analytics-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="analytics-modal-header">
+              <div className="analytics-modal-title">
+                <div className="analytics-title-icon">📊</div>
+                <div>
+                  <h2>Sensitive Data Analytics</h2>
+                  <p>Track unmasked data you've sent</p>
+                </div>
+              </div>
+              <button className="analytics-close-btn" onClick={() => setShowAnalytics(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="analytics-modal-body">
+              {analyticsLoading ? (
+                <div className="analytics-loading">
+                  <div className="scan-loader-spinner" />
+                  <span>Loading analytics...</span>
+                </div>
+              ) : analyticsData ? (
+                <>
+                  {/* ── Summary Cards ── */}
+                  <div className="analytics-summary-row">
+                    <div className="analytics-card analytics-card-total">
+                      <div className="analytics-card-icon">🛡️</div>
+                      <div className="analytics-card-info">
+                        <span className="analytics-card-value">{analyticsData.total || 0}</span>
+                        <span className="analytics-card-label">Total Unmasked Sent</span>
+                      </div>
+                    </div>
+                    <div className="analytics-card analytics-card-types">
+                      <div className="analytics-card-icon">📂</div>
+                      <div className="analytics-card-info">
+                        <span className="analytics-card-value">{Object.keys(analyticsData.counts || {}).length}</span>
+                        <span className="analytics-card-label">Data Types Exposed</span>
+                      </div>
+                    </div>
+                    <div className="analytics-card analytics-card-risk">
+                      <div className="analytics-card-icon">{(analyticsData.total || 0) > 10 ? "🔴" : (analyticsData.total || 0) > 3 ? "🟡" : "🟢"}</div>
+                      <div className="analytics-card-info">
+                        <span className="analytics-card-value">{(analyticsData.total || 0) > 10 ? "High" : (analyticsData.total || 0) > 3 ? "Medium" : "Low"}</span>
+                        <span className="analytics-card-label">Risk Level</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Bar Chart Breakdown ── */}
+                  <div className="analytics-section">
+                    <div className="analytics-section-title">Breakdown by Type</div>
+                    <div className="analytics-bars">
+                      {Object.entries(TYPE_META).map(([type, meta]) => {
+                        const count = analyticsData.counts?.[type] || 0;
+                        const maxCount = Math.max(...Object.values(analyticsData.counts || { _: 1 }), 1);
+                        const pct = Math.round((count / maxCount) * 100);
+                        return (
+                          <div key={type} className="analytics-bar-row">
+                            <div className="analytics-bar-label">
+                              <span className="analytics-bar-icon">{meta.icon}</span>
+                              <span>{meta.label}</span>
+                            </div>
+                            <div className="analytics-bar-track">
+                              <div
+                                className="analytics-bar-fill"
+                                style={{ width: `${pct}%`, background: meta.gradient }}
+                              />
+                            </div>
+                            <span className="analytics-bar-count">{count}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* ── Donut Visual ── */}
+                  <div className="analytics-section">
+                    <div className="analytics-section-title">Exposure Distribution</div>
+                    <div className="analytics-donut-row">
+                      <div className="analytics-donut-container">
+                        <svg viewBox="0 0 120 120" className="analytics-donut-svg">
+                          {(() => {
+                            const total = analyticsData.total || 1;
+                            let cumAngle = 0;
+                            const entries = Object.entries(analyticsData.counts || {});
+                            if (entries.length === 0) {
+                              return <circle cx="60" cy="60" r="50" fill="none" stroke="var(--border)" strokeWidth="14" />;
+                            }
+                            return entries.map(([type, count]) => {
+                              const pct = count / total;
+                              const dashArray = pct * 314.16;
+                              const dashOffset = -cumAngle * 314.16;
+                              cumAngle += pct;
+                              return (
+                                <circle
+                                  key={type}
+                                  cx="60" cy="60" r="50"
+                                  fill="none"
+                                  stroke={TYPE_META[type]?.color || "#666"}
+                                  strokeWidth="14"
+                                  strokeDasharray={`${dashArray} ${314.16 - dashArray}`}
+                                  strokeDashoffset={dashOffset}
+                                  style={{ transition: "all 0.8s ease" }}
+                                />
+                              );
+                            });
+                          })()}
+                          <text x="60" y="56" textAnchor="middle" fill="var(--text)" fontSize="22" fontWeight="700">{analyticsData.total || 0}</text>
+                          <text x="60" y="72" textAnchor="middle" fill="var(--muted)" fontSize="9">TOTAL</text>
+                        </svg>
+                      </div>
+                      <div className="analytics-donut-legend">
+                        {Object.entries(TYPE_META).map(([type, meta]) => {
+                          const count = analyticsData.counts?.[type] || 0;
+                          if (count === 0) return null;
+                          return (
+                            <div key={type} className="analytics-legend-item">
+                              <div className="analytics-legend-dot" style={{ background: meta.color }} />
+                              <span className="analytics-legend-label">{meta.label}</span>
+                              <span className="analytics-legend-count">{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Recent Logs ── */}
+                  <div className="analytics-section">
+                    <div className="analytics-section-title">Recent Activity</div>
+                    <div className="analytics-recent-list">
+                      {analyticsData.recent && analyticsData.recent.length > 0 ? (
+                        analyticsData.recent.map((log, i) => {
+                          const meta = TYPE_META[log.type] || { icon: "❓", label: log.type, color: "#666", gradient: "#666" };
+                          return (
+                            <div key={log._id || i} className="analytics-recent-item">
+                              <div className="analytics-recent-icon" style={{ background: meta.gradient }}>{meta.icon}</div>
+                              <div className="analytics-recent-info">
+                                <span className="analytics-recent-type">{meta.label}</span>
+                                <span className="analytics-recent-value">{log.maskedValue}</span>
+                              </div>
+                              <span className="analytics-recent-time">
+                                {new Date(log.createdAt).toLocaleDateString([], { month: "short", day: "numeric" })}
+                                {" "}
+                                {new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <div className="analytics-empty">
+                          <span style={{ fontSize: "40px" }}>🎉</span>
+                          <span>No unmasked data sent yet — you're secure!</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="analytics-empty">
+                  <span style={{ fontSize: "40px" }}>📊</span>
+                  <span>No analytics data available</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
 
   );

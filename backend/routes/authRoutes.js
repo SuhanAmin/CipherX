@@ -10,7 +10,13 @@ const JWT_SECRET = process.env.JWT_SECRET || "dev_secret_change_me";
 // ✅ normal auth
 router.post("/register", register);
 router.post("/login", login);
-
+router.post("/logout", (req, res) => {
+  res.clearCookie("token"); // if using cookies
+  res.json({
+    success: true,
+    message: "Logged out successfully"
+  });
+});
 // ✅ google auth start
 router.get(
   "/google",

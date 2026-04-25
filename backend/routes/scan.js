@@ -24,9 +24,10 @@ Analyze the document and explain its content.
 
 Rules:
 - Explain what the document contains
+- Give a good summary related to the content what is present in Document.
 - Do NOT assume anything
 - Do NOT mention sensitive data unless clearly visible
-- Keep it concise (3–5 lines)
+
 
 Document:
 ${text}

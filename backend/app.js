@@ -59,6 +59,9 @@ app.get("/api/health", (_req, res) => {
 });
 const ragRoutes = require("./routes/rag");
 app.use("/api", ragRoutes);
+
+const analyticsRoutes = require("./routes/analytics");
+app.use("/api/analytics", analyticsRoutes);
 // ✅ SOCKET AUTH
 io.use(async (socket, next) => {
   try {
