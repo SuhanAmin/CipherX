@@ -1,4 +1,4 @@
-#Personal Data Privacy Analyzer 
+Personal Data Privacy Analyzer 
 Problem 
 Users often unknowingly share sensitive personal information in documents, increasing 
 the risk of data breaches and misuse. 
