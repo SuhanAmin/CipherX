@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse   # ✅ ADD THIS
 from pydantic import BaseModel
+
 from src.search import RAGSearch
 def get_rag(user_id):
     return RAGSearch(user_id=user_id)
@@ -38,16 +40,17 @@ def root():
 def query_rag(q: Query):
     try:
         rag = RAGSearch(user_id=q.userId)
-        answer = rag.search_and_summarize(q.question)
 
-        return {
-            "answer": answer if answer else "No response generated"
-        }
+        stream = rag.search_and_summarize(q.question)
+
+        return StreamingResponse(stream, media_type="text/plain")
 
     except Exception as e:
         print("❌ QUERY ERROR:", str(e))
-        return {"answer": "AI failed to respond"}
-
+        return StreamingResponse(
+            iter(["AI failed to respond"]),
+            media_type="text/plain"
+        )
 # ✅ Ingest endpoint
 @app.post("/ingest")
 def ingest(data: FileIngest):

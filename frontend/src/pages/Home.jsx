@@ -88,21 +88,22 @@ const [maskedItems, setMaskedItems] = useState([]);
   }, [navigate]);
 
   const maskValue = (value, type) => {
-  if (type === "phone") {
-    return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
-  }
-
-  if (type === "email") {
-    const [name, domain] = value.split("@");
-    return name.replace(/./g, "X") + "@" + domain;
-  }
-
-  if (type === "pan" || type === "aadhaar" || type === "bank") {
-    return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
-  }
-
-  return value;
-};
+    if (type === "phone") {
+      return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+    }
+    if (type === "email") {
+      const [name, domain] = value.split("@");
+      return name.replace(/./g, "X") + "@" + domain;
+    }
+    if (type === "dob" || type === "otp") {
+      // Replace all digits with X (preserves / or - in dates)
+      return value.replace(/\d/g, "X");
+    }
+    if (type === "pan" || type === "aadhaar" || type === "bank") {
+      return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+    }
+    return value.replace(/./g, "X");
+  };
 
 const handleToggleMask = async (item) => {
   if (!scanResult) return;
@@ -267,71 +268,83 @@ const handleToggleMask = async (item) => {
     if (!messageInput.trim() || !activeChat) return;
 
     if (activeChat === "cipherx") {
-      const userMsg = {
-        id: Date.now(),
-        senderId: "me",
-        text: messageInput,
-        time: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        isSent: true,
-      };
+  const userMsg = {
+    id: Date.now(),
+    senderId: "me",
+    text: messageInput,
+    time: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    isSent: true,
+  };
 
-      setMessages(prev => [...prev, userMsg]);
+  setMessages(prev => [...prev, userMsg]);
 
-      const query = messageInput; // 🔥 IMPORTANT
-      setMessageInput("");
+  const query = messageInput;
+  setMessageInput("");
 
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch("http://localhost:5000/api/rag", { 
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: "Bearer " + token  
-          },
-          body: JSON.stringify({ question: query })
-        });
+  try {
+    const token = localStorage.getItem("token");
 
-        const data = await res.json();
+    const response = await fetch("http://localhost:5000/api/rag", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token
+      },
+      body: JSON.stringify({ question: query })
+    });
 
-        setMessages(prev => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            senderId: "cipherx",
-            text: data.answer || "No response from AI",
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            isSent: false,
-            isAi: true
-          }
-        ]);
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-      } catch (err) {
-        console.error("RAG ERROR:", err);
+    let result = "";
 
-        setMessages(prev => [
-          ...prev,
-          {
-            id: Date.now() + 2,
-            senderId: "cipherx",
-            text: "⚠️ Failed to fetch AI response",
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-            isSent: false,
-            isAi: true
-          }
-        ]);
+    // 👇 Add empty AI message first
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now() + 1,
+        senderId: "cipherx",
+        text: "",
+        isSent: false,
+        isAi: true
       }
+    ]);
 
-      return;
+    // 👇 STREAM LOOP
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      result += chunk;
+
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1].text = result;
+        return updated;
+      });
     }
+
+  } catch (err) {
+    console.error("RAG ERROR:", err);
+
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now() + 2,
+        senderId: "cipherx",
+        text: "⚠️ Failed to fetch AI response",
+        isSent: false,
+        isAi: true
+      }
+    ]);
+  }
+
+  return;
+}
 
     if (!socket) return;
 
@@ -815,7 +828,7 @@ const handleToggleMask = async (item) => {
       {/* ✅ SUMMARY */}
       <div className="scan-section">
         <div className="scan-section-title">✨ AI Summary</div>
-        <div className="scan-summary-box">
+        <div className="scan-summary-box" style={{ whiteSpace: "pre-wrap" }}>
           {scanResult.summary}
         </div>
       </div>
@@ -823,13 +836,13 @@ const handleToggleMask = async (item) => {
       {/* 📞 PHONES */}
       {scanResult.detected?.some(d => d.type === "phone") && (
         <div className="scan-section">
-          <div className="scan-section-title">📞 Extracted Phones</div>
+          <div className="scan-section-title">📱 Indian Phone Numbers</div>
           <div className="scan-list">
             {scanResult.detected
               .filter(d => d.type === "phone")
               .map((p, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>📱 {p.value}</span>
+                  <span>📞 {p.value}</span>
                   <button
   onClick={() => handleToggleMask(p)}
   style={{
@@ -858,42 +871,42 @@ const handleToggleMask = async (item) => {
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>✉️ {e.value}</span>
                   <button
-  onClick={() => handleToggleMask(e)}
-  style={{
-    background: e.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {e.isMasked ? "Unmask" : "Mask"}
-</button>
+                    onClick={() => handleToggleMask(e)}
+                    style={{
+                      background: e.isMasked
+                        ? "linear-gradient(135deg, #ef4444, #dc2626)"
+                        : "linear-gradient(135deg, #10b981, #059669)",
+                      color: "#fff"
+                    }}
+                  >
+                    {e.isMasked ? "Unmask" : "Mask"}
+                  </button>
                 </div>
               ))}
           </div>
         </div>
       )}
 
-      {/* 🪪 PAN */}
-      {scanResult.detected?.some(d => d.type === "pan") && (
+      {/* 📅 DOB */}
+      {scanResult.detected?.some(d => d.type === "dob") && (
         <div className="scan-section">
-          <div className="scan-section-title">🪪 PAN</div>
+          <div className="scan-section-title">📅 Date of Birth</div>
           <div className="scan-list">
             {scanResult.detected
-              .filter(d => d.type === "pan")
-              .map((p, i) => (
+              .filter(d => d.type === "dob")
+              .map((d, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>🆔 {p.value}</span>
+                  <span>🎂 {d.value}</span>
                   <button
-  onClick={() => handleToggleMask(p)}
+  onClick={() => handleToggleMask(d)}
   style={{
-    background: p.isMasked
+    background: d.isMasked
       ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
       : "linear-gradient(135deg, #10b981, #059669)", // green
     color: "#fff"
   }}
 >
-  {p.isMasked ? "Unmask" : "Mask"}
+  {d.isMasked ? "Unmask" : "Mask"}
 </button>
                 </div>
               ))}
@@ -901,10 +914,37 @@ const handleToggleMask = async (item) => {
         </div>
       )}
 
-      {/* 🆔 AADHAAR */}
+      {/* 🔐 OTP */}
+      {scanResult.detected?.some(d => d.type === "otp") && (
+        <div className="scan-section">
+          <div className="scan-section-title">🔐 OTP Codes</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "otp")
+              .map((o, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>🔢 {o.value}</span>
+                  <button
+  onClick={() => handleToggleMask(o)}
+  style={{
+    background: o.isMasked
+      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+      : "linear-gradient(135deg, #10b981, #059669)", // green
+    color: "#fff"
+  }}
+>
+  {o.isMasked ? "Unmask" : "Mask"}
+</button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🪪 AADHAAR */}
       {scanResult.detected?.some(d => d.type === "aadhaar") && (
         <div className="scan-section">
-          <div className="scan-section-title">🆔 Aadhaar</div>
+          <div className="scan-section-title">🪪 Aadhaar Card</div>
           <div className="scan-list">
             {scanResult.detected
               .filter(d => d.type === "aadhaar")
@@ -928,33 +968,32 @@ const handleToggleMask = async (item) => {
         </div>
       )}
 
-      {/* 🏦 BANK */}
-      {scanResult.detected?.some(d => d.type === "bank") && (
+      {/* 🆔 PAN */}
+      {scanResult.detected?.some(d => d.type === "pan") && (
         <div className="scan-section">
-          <div className="scan-section-title">🏦 Bank</div>
+          <div className="scan-section-title">🆔 PAN Card</div>
           <div className="scan-list">
             {scanResult.detected
-              .filter(d => d.type === "bank")
-              .map((b, i) => (
+              .filter(d => d.type === "pan")
+              .map((p, i) => (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>💳 {b.value}</span>
-                 <button
-  onClick={() => handleToggleMask(b)}
+                  <span>🪪 {p.value}</span>
+                  <button
+  onClick={() => handleToggleMask(p)}
   style={{
-    background: b.isMasked
+    background: p.isMasked
       ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
       : "linear-gradient(135deg, #10b981, #059669)", // green
     color: "#fff"
   }}
 >
-  {b.isMasked ? "Unmask" : "Mask"}
+  {p.isMasked ? "Unmask" : "Mask"}
 </button>
                 </div>
               ))}
           </div>
         </div>
       )}
-
     </>
   ) : (
     <div className="scan-summary-placeholder">

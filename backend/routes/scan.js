@@ -18,7 +18,7 @@ const getSummary = async (text) => {
     const res = await axios.post(
       "http://localhost:11434/api/generate",
       {
-        model: "phi",
+        model: "tinyllama",
         prompt: `
 Analyze the document and explain its content.
 
@@ -32,9 +32,9 @@ Rules:
 Document:
 ${text}
 `,
-        stream: false,
+        stream: true,
       },
-      { timeout: 4000 }
+     
     );
 
     return res.data.response;
@@ -44,22 +44,27 @@ ${text}
 };
 
 /* -------------------- 🔥 REGEX -------------------- */
-const phoneRegex =
-  /(\+?\d{1,3}[-.\s]?)?\(?\d{3,5}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}/g;
+// Indian Phone: 10 digits (optionally starting with 6-9) or +91 followed by 10 digits
+const phoneRegex = /(?:\+91[\s-]?)?\b[6789]\d{9}\b/g;
 
-// ✅ FIXED EMAIL REGEX
-const emailRegex =
-  /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b/g;
+// Aadhaar: 12 digits, joined or separated by single spaces every 4 digits
+const aadhaarRegex = /\b\d{4}[\s]?\d{4}[\s]?\d{4}\b/g;
 
-const aadhaarRegex = /\b\d{4}\s?\d{4}\s?\d{4}\b/g;
-
+// PAN Card: 10 alphanumeric characters (5 uppercase letters, 4 digits, 1 uppercase letter)
 const panRegex = /\b[A-Z]{5}[0-9]{4}[A-Z]\b/g;
 
-const bankRegex = /\b\d{9,18}\b/g;
+// DOB: DD/MM/YYYY or DD-MM-YYYY
+const dobRegex = /\b(?:0[1-9]|[12][0-9]|3[01])[-/](?:0[1-9]|1[0-2])[-/](?:19|20)\d{2}\b/g;
+
+// OTP: 4 or 6 digits
+const otpRegex = /\b(?:\d{4}|\d{6})\b/g;
+
+// Email
+const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b/g;
 
 /* -------------------- 🔥 KEYWORDS -------------------- */
 const KEYWORDS = {
-  bank: ["account", "bank", "ifsc"],
+  otp: ["otp", "pin", "code", "passcode"]
 };
 
 /* -------------------- 🔥 DETECTION -------------------- */
@@ -75,13 +80,20 @@ function detectSensitive(content) {
     // 📞 PHONE
     const phones = line.match(phoneRegex) || [];
     for (let p of phones) {
-      const clean = p.replace(/\D/g, "");
-      if (clean.length >= 10 && clean.length <= 12) {
-        const key = "phone" + clean;
-        if (!seen.has(key)) {
-          seen.add(key);
-          results.push({ value: clean, type: "phone" });
-        }
+      const key = "phone" + p;
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push({ value: p, type: "phone" });
+      }
+    }
+
+    // 📅 DOB
+    const dobs = line.match(dobRegex) || [];
+    for (let d of dobs) {
+      const key = "dob" + d;
+      if (!seen.has(key)) {
+        seen.add(key);
+        results.push({ value: d, type: "dob" });
       }
     }
 
@@ -95,14 +107,26 @@ function detectSensitive(content) {
       }
     }
 
+    // 🔐 OTP
+    const otps = line.match(otpRegex) || [];
+    for (let o of otps) {
+      // Must be accompanied by context keywords in the same line to avoid matching random 4/6 digit numbers
+      if (KEYWORDS.otp.some(k => lower.includes(k))) {
+        const key = "otp" + o;
+        if (!seen.has(key)) {
+          seen.add(key);
+          results.push({ value: o, type: "otp" });
+        }
+      }
+    }
+
     // 🪪 AADHAAR
     const aadhaar = line.match(aadhaarRegex) || [];
     for (let a of aadhaar) {
-      const clean = a.replace(/\s/g, "");
-      const key = "aadhaar" + clean;
+      const key = "aadhaar" + a;
       if (!seen.has(key)) {
         seen.add(key);
-        results.push({ value: clean, type: "aadhaar" });
+        results.push({ value: a, type: "aadhaar" });
       }
     }
 
@@ -113,18 +137,6 @@ function detectSensitive(content) {
       if (!seen.has(key)) {
         seen.add(key);
         results.push({ value: p, type: "pan" });
-      }
-    }
-
-    // 🏦 BANK (context-based)
-    const bank = line.match(bankRegex) || [];
-    for (let b of bank) {
-      if (KEYWORDS.bank.some(k => lower.includes(k))) {
-        const key = "bank" + b;
-        if (!seen.has(key)) {
-          seen.add(key);
-          results.push({ value: b, type: "bank" });
-        }
       }
     }
   }
@@ -218,21 +230,20 @@ router.post("/scan", upload.single("file"), async (req, res) => {
 
     /* -------- SUMMARY -------- */
     let summary;
+    let defaultSummary = generateSummary(detected);
 
-    // ⚡ Fast path
-    if (content.length < 200) {
-      summary = generateSummary(detected);
+    // Get AI explanation
+    const shortText = content.slice(0, 800);
+    const aiSummary = await getSummary(shortText);
+
+    if (aiSummary) {
+      if (detected.length > 0) {
+        summary = `⚠️ Sensitive Information Detected: ${defaultSummary}\n\n📝 AI File Summary: ${aiSummary.trim()}`;
+      } else {
+        summary = `📝 AI File Summary: ${aiSummary.trim()}`;
+      }
     } else {
-      // optional AI explanation
-      const shortText = content.slice(0, 300);
-      const aiSummary = await getSummary(shortText);
-
-      summary = aiSummary || generateSummary(detected);
-    }
-
-    // 🔥 FORCE CONSISTENCY (MOST IMPORTANT)
-    if (detected.length > 0) {
-      summary = generateSummary(detected);
+      summary = defaultSummary;
     }
 
     return res.json({

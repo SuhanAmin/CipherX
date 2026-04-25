@@ -11,163 +11,84 @@ class RAGSearch:
     def __init__(self, user_id=None, embedding_model: str = "all-MiniLM-L6-v2"):
         base_dir = os.path.join(BASE_DIR, "faiss_store")
 
-        if user_id:
-            persist_dir = os.path.join(base_dir, str(user_id))
-        else:
-            persist_dir = base_dir
-        # 📁 Set FAISS storage path
-        
+        persist_dir = os.path.join(base_dir, str(user_id)) if user_id else base_dir
 
         self.vectorstore = FaissVectorStore(persist_dir, embedding_model)
 
-        # 📂 Paths
         faiss_path = os.path.join(persist_dir, 'faiss.index')
         meta_path = os.path.join(persist_dir, 'metadata.pkl')
 
-        # 🔧 Build or load vector store
         if os.path.exists(faiss_path) and os.path.exists(meta_path):
             self.vectorstore.load()
         else:
-            print("⚠️ No vector DB yet. Waiting for file uploads...")
-    
-    # 🔥 OLLAMA CALL
-    def generate_with_ollama(self, prompt: str):
-        try:
-            print("📤 PROMPT SENT TO OLLAMA:\n", prompt[:200])
+            print("⚠️ No vector DB yet")
 
-            res = requests.post(
-                "http://localhost:11434/api/generate",
-                json={
-                    "model": "phi",
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {
-                        "temperature": 0.7,
-                        "num_predict": 200   # 🔥 force longer output
-                    }
-                },
-                timeout=60
-            )
+    # 🔥 STREAMING OLLAMA
+    def generate_with_ollama_stream(self, prompt: str):
+        res = requests.post(
+            "http://localhost:11434/api/generate",
+            json={
+                "model": "tinyllama",
+                "prompt": prompt,
+                "stream": True,
+                "options": {
+                    "num_predict": 100
+                }
+            },
+            stream=True
+        )
 
-            #print("📡 STATUS:", res.status_code)
-            #print("📡 RAW TEXT:", res.text)
+        for line in res.iter_lines():
+            if line:
+                try:
+                    import json
+                    data = json.loads(line.decode("utf-8"))
+                    if "response" in data:
+                        yield data["response"]
+                except Exception:
+                    pass
 
-            data = res.json()
-            response = data.get("response", "").strip()
-
-            # 🔥 FIX 1: EMPTY RESPONSE → SIMPLE FALLBACK
-            if not response:
-                print("⚠️ Empty response → fallback")
-
-                fallback_prompt = f"""
-    Explain clearly in simple words:
-
-    {prompt}
-    """
-
-                retry = requests.post(
-                    "http://localhost:11434/api/generate",
-                    json={
-                        "model": "phi",
-                        "prompt": fallback_prompt,
-                        "stream": False,
-                        "options": {
-                            "temperature": 0.8,
-                            "num_predict": 200
-                        }
-                    },
-                    timeout=60
-                )
-
-                retry_data = retry.json()
-                response = retry_data.get("response", "").strip()
-
-            return response if response else "AI could not generate a response."
-
-        except Exception as e:
-            print("❌ OLLAMA ERROR:", str(e))
-            return "AI service failed"
-    def ingest_file(self, file_path: str):
-        from src.data_loader import load_single_file
-
-        # 🔥 FIX PATH
-        file_path = os.path.abspath(file_path)
-
-        #print("📂 Ingesting:", file_path)
-
-        if not os.path.exists(file_path):
-            return {"error": f"File not found: {file_path}"}
-
-        
-
-        docs = load_single_file(file_path)
-
-        if not docs:
-            return {"message": "No content extracted"}
-
-        self.vectorstore.add_documents(docs)
-
-        return {"message": "File stored in vector DB"}
-    # 🔍 MAIN RAG PIPELINE
+    # 🔍 MAIN RAG
     def search_and_summarize(self, query: str, top_k: int = 3):
         if not getattr(self.vectorstore, "index", None):
-            print("⚠️ No vector index → fallback to AI")
-            return self.generate_with_ollama(query)
-        # 🔎 Search vector DB
+            return self.generate_with_ollama_stream(query)
+
         try:
             results = self.vectorstore.query(query, top_k)
         except Exception as e:
-            print("❌ VECTOR SEARCH ERROR:", str(e))
-            return self.generate_with_ollama(query)
+            print("❌ VECTOR ERROR:", str(e))
+            return self.generate_with_ollama_stream(query)
 
         if not results:
-            return self.generate_with_ollama(query)
+            return self.generate_with_ollama_stream(query)
 
-        # 🛠 Fix nested issue
-        if results and isinstance(results[0], list):
+        if isinstance(results[0], list):
             results = results[0]
 
-        # 🧹 Remove duplicates
         seen = set()
         unique_results = []
 
         for r in results:
-            metadata = r.get("metadata")
-
-            if metadata and isinstance(metadata, dict):
-                text = metadata.get("text", "")
-            else:
-                continue
-            if text not in seen:
+            text = r.get("metadata", {}).get("text", "")
+            if text and text not in seen:
                 seen.add(text)
                 unique_results.append(r)
 
-        # 📊 Sort by similarity
         unique_results.sort(key=lambda x: x["distance"])
-
-        # 🎯 Pick top results
         top_results = unique_results[:top_k]
 
-        # 🧠 Build context
-        texts = [
+        context = "\n\n".join([
             r["metadata"].get("text", "")
             for r in top_results
-            if r.get("metadata")
-        ]
+        ])
 
-        context = "\n\n".join(texts)
-
-        # 🤖 If no context → fallback to LLM only
         if not context.strip():
-            return self.generate_with_ollama(query)
+            return self.generate_with_ollama_stream(query)
 
-        # 🧾 FINAL PROMPT (VERY IMPORTANT)
         prompt = f"""
 You are a professional AI assistant.
 
-Answer the question clearly and concisely using the provided context.
-
-If the answer is not in the context, answer based on general knowledge.
+Answer clearly using the context. If not found, use general knowledge.
 
 Context:
 {context}
@@ -178,5 +99,4 @@ Question:
 Answer:
 """
 
-        # 🚀 Generate answer
-        return self.generate_with_ollama(prompt)
+        return self.generate_with_ollama_stream(prompt)
