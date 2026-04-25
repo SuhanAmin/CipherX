@@ -3,6 +3,7 @@ const multer = require("multer");
 const axios = require("axios"); // ✅ add this
 const path = require("path");
 const router = express.Router();
+const { authenticate } = require("../middleware/auth"); // ✅ import auth middleware
 
 const storage = multer.diskStorage({
   destination: "uploads/",
@@ -13,7 +14,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-router.post("/", upload.single("file"), async (req, res) => {
+router.post("/", authenticate, upload.single("file"), async (req, res) => {
   try {
     const filePath = path.resolve(req.file.path);
     console.log("📂 Uploaded file:", filePath);
@@ -22,6 +23,7 @@ router.post("/", upload.single("file"), async (req, res) => {
     try {
       await axios.post("http://localhost:8000/ingest", {
         filePath: filePath,
+        userId: req.user.id
       });
 
       console.log("✅ Original file stored in vector DB");

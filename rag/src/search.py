@@ -8,11 +8,15 @@ load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 class RAGSearch:
-    def __init__(self, persist_dir: str = None, embedding_model: str = "all-MiniLM-L6-v2"):
+    def __init__(self, user_id=None, embedding_model: str = "all-MiniLM-L6-v2"):
+        base_dir = os.path.join(BASE_DIR, "faiss_store")
 
+        if user_id:
+            persist_dir = os.path.join(base_dir, str(user_id))
+        else:
+            persist_dir = base_dir
         # 📁 Set FAISS storage path
-        if persist_dir is None:
-            persist_dir = os.path.join(BASE_DIR, "faiss_store")
+        
 
         self.vectorstore = FaissVectorStore(persist_dir, embedding_model)
 
@@ -21,14 +25,11 @@ class RAGSearch:
         meta_path = os.path.join(persist_dir, 'metadata.pkl')
 
         # 🔧 Build or load vector store
-        if not (os.path.exists(faiss_path) and os.path.exists(meta_path)):
-            from src.data_loader import load_all_documents
-
-            docs = load_all_documents(os.path.join(BASE_DIR, "data"))
-            self.vectorstore.build_from_documents(docs)
-        else:
+        if os.path.exists(faiss_path) and os.path.exists(meta_path):
             self.vectorstore.load()
-
+        else:
+            print("⚠️ No vector DB yet. Waiting for file uploads...")
+    
     # 🔥 OLLAMA CALL
     def generate_with_ollama(self, prompt: str):
         try:
@@ -109,9 +110,18 @@ class RAGSearch:
         return {"message": "File stored in vector DB"}
     # 🔍 MAIN RAG PIPELINE
     def search_and_summarize(self, query: str, top_k: int = 3):
-
+        if not getattr(self.vectorstore, "index", None):
+            print("⚠️ No vector index → fallback to AI")
+            return self.generate_with_ollama(query)
         # 🔎 Search vector DB
-        results = self.vectorstore.query(query, top_k)
+        try:
+            results = self.vectorstore.query(query, top_k)
+        except Exception as e:
+            print("❌ VECTOR SEARCH ERROR:", str(e))
+            return self.generate_with_ollama(query)
+
+        if not results:
+            return self.generate_with_ollama(query)
 
         # 🛠 Fix nested issue
         if results and isinstance(results[0], list):

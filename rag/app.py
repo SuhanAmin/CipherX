@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from src.search import RAGSearch
+def get_rag(user_id):
+    return RAGSearch(user_id=user_id)
 
 app = FastAPI()
 
@@ -20,9 +22,11 @@ rag = RAGSearch()
 # ✅ Models
 class Query(BaseModel):
     question: str
+    userId: str
 
 class FileIngest(BaseModel):
     filePath: str
+    userId: str
 
 # ✅ Health check
 @app.get("/")
@@ -33,10 +37,8 @@ def root():
 @app.post("/query")
 def query_rag(q: Query):
     try:
+        rag = RAGSearch(user_id=q.userId)
         answer = rag.search_and_summarize(q.question)
-
-        #print("QUESTION:", q.question)
-        #print("ANSWER:", answer)
 
         return {
             "answer": answer if answer else "No response generated"
@@ -50,8 +52,8 @@ def query_rag(q: Query):
 @app.post("/ingest")
 def ingest(data: FileIngest):
     try:
-        result = rag.ingest_file(data.filePath)
-        return result
+        rag = RAGSearch(user_id=data.userId)
+        return rag.ingest_file(data.filePath)
     except Exception as e:
         print("❌ INGEST ERROR:", str(e))
         return {"error": str(e)}

@@ -281,10 +281,12 @@ const handleEncrypt = async (item) => {
       setMessageInput("");
 
       try {
+        const token = localStorage.getItem("token");
         const res = await fetch("http://localhost:5000/api/rag", { 
           method: "POST",
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + token  
           },
           body: JSON.stringify({ question: query })
         });
@@ -566,8 +568,12 @@ const handleEncrypt = async (item) => {
                     }
 
                     // 1️⃣ Upload file to backend
+                    const token = localStorage.getItem("token");  // ✅ THIS IS MISSING
                     const res = await fetch("http://localhost:5000/api/upload", {
                       method: "POST",
+                       headers: {
+    Authorization: "Bearer " + token   // 🔥 VERY IMPORTANT
+  },
                       body: formData
                     });
 
