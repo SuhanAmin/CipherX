@@ -42,21 +42,34 @@ const [maskedItems, setMaskedItems] = useState([]);
       ...opts,
     });
 
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      navigate("/");
+      throw new Error("Unauthorized");
+    }
+
+    if (!res.ok) {
+      throw new Error(`API error: ${res.status}`);
+    }
+
     return res.json();
   };
 
   // 🔹 Auth + token handling
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    let token = localStorage.getItem("token");
+    const urlToken = new URLSearchParams(window.location.search).get("token");
+
+    if (urlToken) {
+      localStorage.setItem("token", urlToken);
+      token = urlToken;
+      // Clean the URL to hide the token
+      window.history.replaceState({}, document.title, "/home");
+    }
 
     if (!token) {
       navigate("/");
       return;
-    }
-
-    const urlToken = new URLSearchParams(window.location.search).get("token");
-    if (urlToken) {
-      localStorage.setItem("token", urlToken);
     }
 
     // decode user (optional fallback)
