@@ -25,7 +25,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
-
+const [modifiedContent, setModifiedContent] = useState("");
+const [maskedItems, setMaskedItems] = useState([]);
   const BACKEND_URL = "http://localhost:5000";
 
   // 🔹 API helper
@@ -65,6 +66,62 @@ export default function Home() {
     } catch { }
   }, [navigate]);
 
+  const maskValue = (value, type) => {
+  if (type === "phone") {
+    return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+  }
+
+  if (type === "email") {
+    const [name, domain] = value.split("@");
+    return name.replace(/./g, "X") + "@" + domain;
+  }
+
+  if (type === "pan" || type === "aadhaar" || type === "bank") {
+    return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+  }
+
+  return value;
+};
+
+const handleEncrypt = async (item) => {
+  if (!scanResult) return;
+
+  const masked = maskValue(item.value, item.type);
+
+  let currentContent = modifiedContent;
+  if (!currentContent) {
+    if (previewFile?.type === "application/pdf" || previewFile?.type?.startsWith("image/")) {
+      currentContent = scanResult.content || "";
+    } else if (previewFile) {
+      try {
+        currentContent = await previewFile.text();
+      } catch (e) {
+        console.error("Failed to read file text", e);
+        currentContent = previewFile.name || "";
+      }
+    }
+  }
+
+  let updated = currentContent.replaceAll(item.value, masked);
+
+  setModifiedContent(updated);
+
+  // Track the masked items for advanced PDF redaction
+  setMaskedItems(prev => {
+    if (!prev.some(i => i.original === item.value)) {
+      return [...prev, { original: item.value, masked: masked }];
+    }
+    return prev;
+  });
+
+  // Update UI instantly
+  setScanResult(prev => ({
+    ...prev,
+    detected: prev.detected.map(d =>
+      d.value === item.value ? { ...d, value: masked } : d
+    )
+  }));
+};
   // 🔹 Load rooms
   useEffect(() => {
     const loadRooms = async () => {
@@ -189,6 +246,8 @@ export default function Home() {
     setMessageInput("");
   };
 
+  
+
   // 🔹 Handle textarea keys and sizing
   const handleKey = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -297,6 +356,8 @@ export default function Home() {
                   if (previewUrl) URL.revokeObjectURL(previewUrl);
                   setPreviewUrl(null);
                   setScanResult(null);
+                  setModifiedContent("");
+                  setMaskedItems([]);
                 }} title="Close Preview">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -320,7 +381,56 @@ export default function Home() {
 
                   try {
                     const formData = new FormData();
-                    formData.append("file", previewFile);
+
+                    // ✅ SECURE DOCUMENT CASE (PDFs & Images)
+                    if ((previewFile?.type === "application/pdf" || previewFile?.type?.startsWith("image/")) && maskedItems.length > 0) {
+                      const formDataMask = new FormData();
+                      formDataMask.append("file", previewFile);
+                      formDataMask.append("maskedItems", JSON.stringify(maskedItems));
+
+                      const resMask = await fetch("http://localhost:5000/api/mask-file", {
+                        method: "POST",
+                        body: formDataMask,
+                      });
+
+                      if (!resMask.ok) {
+                        throw new Error(`File Masking failed: ${resMask.status}`);
+                      }
+
+                      const dataMask = await resMask.json();
+                      
+                      if (!dataMask.fileUrl) {
+                        throw new Error("No fileUrl returned from mask-file");
+                      }
+
+                      // Fetch the generated secured file from backend to re-upload into chat flow
+                      const response = await fetch(dataMask.fileUrl);
+                      const blob = await response.blob();
+
+                      // Determine correct extension
+                      const isPdf = previewFile.type === "application/pdf";
+                      let ext = isPdf ? "pdf" : (previewFile.type === "image/png" ? "png" : "jpg");
+                      
+                      const filename = previewFile.name 
+                        ? previewFile.name.replace(/\.[^/.]+$/, "") + `-secured.${ext}` 
+                        : `secured.${ext}`;
+
+                      formData.append("file", blob, filename);
+                    }
+                    // ✅ TEXT CASE (or any other modified content)
+                    else if (modifiedContent) {
+                      const blob = new Blob([modifiedContent], { type: "text/plain" });
+
+                      const filename = previewFile.name
+                        ? previewFile.name.replace(/\.[^/.]+$/, "") + "-secured.txt"
+                        : "secured.txt";
+
+                      formData.append("file", blob, filename);
+                    }
+                    // ✅ DEFAULT
+                    else {
+                      formData.append("file", previewFile);
+                    }
 
                     // 1️⃣ Upload file to backend
                     const res = await fetch("http://localhost:5000/api/upload", {
@@ -328,7 +438,15 @@ export default function Home() {
                       body: formData
                     });
 
+                    if (!res.ok) {
+                       throw new Error(`Upload failed with status ${res.status}`);
+                    }
+
                     const data = await res.json();
+
+                    if (!data.fileUrl) {
+                       throw new Error("No fileUrl returned from backend");
+                    }
 
                     console.log("Uploaded file URL:", data.fileUrl);
 
@@ -341,6 +459,7 @@ export default function Home() {
 
                   } catch (err) {
                     console.error("File send error:", err);
+                    alert("Failed to send encrypted file. See console for details.");
                   }
 
                   // 3️⃣ Reset UI
@@ -348,6 +467,8 @@ export default function Home() {
                   if (previewUrl) URL.revokeObjectURL(previewUrl);
                   setPreviewUrl(null);
                   setScanResult(null);
+                  setModifiedContent("");
+                  setMaskedItems([]);
                 }} title="Send">
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
@@ -366,63 +487,126 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="scan-content">
-                  {/* Summary Section */}
-                  <div className="scan-section">
-                    <div className="scan-section-title">✨ AI Summary</div>
-                    <div className="scan-summary-box">
-                      {scanResult?.summary ? (
-                        scanResult.summary
-                      ) : (
-                        <span className="scan-summary-placeholder">AI Summary will be generated here...</span>
-                      )}
-                    </div>
-                  </div>
+                  
 
-                  {/* Phones Section */}
-                  <div className="scan-section">
-                    <div className="scan-section-title">📞 Extracted Phones</div>
-                    <div className="scan-list">
-                      {scanResult?.phones?.length > 0 ? (
-                        scanResult.phones.map((p, i) => (
-                          <div key={`phone-${i}`} className="scan-item">
-                            <div className="scan-item-content">
-                              <div className="scan-icon">📱</div>
-                              <span>{p}</span>
-                            </div>
-                            <button className="encrypt-btn">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                              Encrypt
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="scan-item-content" style={{ color: 'var(--muted)', fontSize: '13px' }}>No phone numbers found.</div>
-                      )}
-                    </div>
-                  </div>
+  {/* SHOW ONLY WHEN SCAN EXISTS */}
+  {scanResult ? (
+    <>
 
-                  {/* Emails Section */}
-                  <div className="scan-section">
-                    <div className="scan-section-title">📧 Extracted Emails</div>
-                    <div className="scan-list">
-                      {scanResult?.emails?.length > 0 ? (
-                        scanResult.emails.map((e, i) => (
-                          <div key={`email-${i}`} className="scan-item">
-                            <div className="scan-item-content">
-                              <div className="scan-icon">✉️</div>
-                              <span style={{ wordBreak: 'break-all' }}>{e}</span>
-                            </div>
-                            <button className="encrypt-btn">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
-                              Encrypt
-                            </button>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="scan-item-content" style={{ color: 'var(--muted)', fontSize: '13px' }}>No emails found.</div>
-                      )}
-                    </div>
-                  </div>
+      {/* ✅ SUMMARY */}
+      <div className="scan-section">
+        <div className="scan-section-title">✨ AI Summary</div>
+        <div className="scan-summary-box">
+          {scanResult.summary}
+        </div>
+      </div>
+
+      {/* 📞 PHONES */}
+      {scanResult.detected?.some(d => d.type === "phone") && (
+        <div className="scan-section">
+          <div className="scan-section-title">📞 Extracted Phones</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "phone")
+              .map((p, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>📱 {p.value}</span>
+                  <button onClick={() => handleEncrypt(p)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                    Encrypt
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 📧 EMAILS */}
+      {scanResult.detected?.some(d => d.type === "email") && (
+        <div className="scan-section">
+          <div className="scan-section-title">📧 Extracted Emails</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "email")
+              .map((e, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>✉️ {e.value}</span>
+                  <button onClick={() => handleEncrypt(e)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                    Encrypt
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🪪 PAN */}
+      {scanResult.detected?.some(d => d.type === "pan") && (
+        <div className="scan-section">
+          <div className="scan-section-title">🪪 PAN</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "pan")
+              .map((p, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>🆔 {p.value}</span>
+                  <button onClick={() => handleEncrypt(p)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                    Encrypt
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🆔 AADHAAR */}
+      {scanResult.detected?.some(d => d.type === "aadhaar") && (
+        <div className="scan-section">
+          <div className="scan-section-title">🆔 Aadhaar</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "aadhaar")
+              .map((a, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>📄 {a.value}</span>
+                  <button onClick={() => handleEncrypt(a)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                    Encrypt
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🏦 BANK */}
+      {scanResult.detected?.some(d => d.type === "bank") && (
+        <div className="scan-section">
+          <div className="scan-section-title">🏦 Bank</div>
+          <div className="scan-list">
+            {scanResult.detected
+              .filter(d => d.type === "bank")
+              .map((b, i) => (
+                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>💳 {b.value}</span>
+                  <button onClick={() => handleEncrypt(b)} className="encrypt-btn" style={{ background: "linear-gradient(135deg, #10b981 0%, #059669 100%)", border: "none", padding: "6px 12px", borderRadius: "6px", color: "#fff", cursor: "pointer", fontSize: "12px", fontWeight: "600", display: "flex", alignItems: "center", gap: "6px", boxShadow: "0 2px 8px rgba(16, 185, 129, 0.3)" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0110 0v4"></path></svg>
+                    Encrypt
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+    </>
+  ) : (
+    <div className="scan-summary-placeholder">
+      Upload a file to analyze sensitive data
+    </div>
+  )}
                 </div>
               )}
             </div>
@@ -518,6 +702,8 @@ export default function Home() {
 
                     setIsScanning(true);
                     setScanResult(null);
+                    setModifiedContent("");
+                    setMaskedItems([]);
 
                     const formData = new FormData();
                     formData.append("file", file);
