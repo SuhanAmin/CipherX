@@ -5,12 +5,12 @@ const  User  = require('../models/User');
 const router = express.Router();
 
 router.get('/me', authenticate, async (req, res) => {
-	const user = await User.findById(req.user.id).select('_id username online lastSeen');
+	const user = await User.findById(req.user.id).select('_id name online lastSeen');
 	res.json(user);
 });
 
 router.get('/', authenticate, async (_req, res) => {
-	const users = await User.find().select('_id username online lastSeen').limit(200).sort({ username: 1 });
+	const users = await User.find().select('_id name online lastSeen').limit(200).sort({ name: 1 });
 	res.json(users);
 });
 

@@ -10,7 +10,7 @@ const sensitiveLogSchema = new mongoose.Schema(
     type: {
       type: String,
       required: true,
-      enum: ["phone", "email", "pan", "aadhaar", "bank"], // Types matching our scanner
+      enum: ["phone", "email", "pan", "aadhaar", "bank", "dob", "otp"], // Types matching our scanner
     },
     maskedValue: {
       type: String,

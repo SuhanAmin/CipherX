@@ -13,14 +13,21 @@ const router = express.Router();
 
 
 /* -------------------- 🔥 LLM (ONLY FOR EXPLANATION) -------------------- */
+
+const LLM_API_KEY = process.env.LLM_API_KEY;
+const LLM_BASE_URL = process.env.LLM_BASE_URL || "https://openrouter.ai/api/v1";
+const LLM_MODEL = process.env.LLM_MODEL || "google/gemma-4-31b-it:free";
+
 const getSummary = async (text) => {
   try {
     const res = await axios.post(
-      "http://localhost:11434/api/generate",
+      `${LLM_BASE_URL}/chat/completions`,
       {
-        model: "tinyllama",
-        prompt: `
-Analyze the document and explain its content.
+        model: LLM_MODEL,
+        messages: [
+          {
+            role: "user",
+            content: `Analyze the document and explain its content.
 
 Rules:
 - Explain what the document contains
@@ -28,104 +35,94 @@ Rules:
 - Do NOT assume anything
 - Do NOT mention sensitive data unless clearly visible
 
-
 Document:
-${text}
-`,
-        stream: true,
+${text}`,
+          },
+        ],
+        max_tokens: 512,
       },
-     
+      {
+        headers: {
+          Authorization: `Bearer ${LLM_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "http://localhost:5000",
+          "X-Title": "CipherX",
+        },
+        timeout: 30000,
+      }
     );
 
-    return res.data.response;
-  } catch {
+    const choice = res.data?.choices?.[0];
+    return choice?.message?.content || null;
+  } catch (err) {
+    console.error("❌ LLM Summary Error:", err.message);
     return null;
   }
 };
 
 /* -------------------- 🔥 REGEX -------------------- */
-// Indian Phone: 10 digits (optionally starting with 6-9) or +91 followed by 10 digits
-const phoneRegex = /(?:\+91[\s-]?)?\b[6789]\d{9}\b/g;
+// Indian Phone: handles all common formats:
+//   +919876543210, +91 9876543210, +91-9876543210
+//   09876543210, 9876543210
+//   +91 98765 43210 (spaces within the 10 digits)
+const phoneRegex = /(?:\+91[\s-]?)?(?:0)?[6-9]\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d[\s-]?\d(?!\d)/g;
 
-// Aadhaar: 12 digits, joined or separated by single spaces every 4 digits
-const aadhaarRegex = /\b\d{4}[\s]?\d{4}[\s]?\d{4}\b/g;
+// Aadhaar: exactly 12 digits, separated by spaces or dashes every 4 digits, OR all together
+const aadhaarRegex = /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/g;
 
-// PAN Card: 10 alphanumeric characters (5 uppercase letters, 4 digits, 1 uppercase letter)
+// PAN Card: 5 uppercase letters, 4 digits, 1 uppercase letter
 const panRegex = /\b[A-Z]{5}[0-9]{4}[A-Z]\b/g;
 
-// DOB: DD/MM/YYYY or DD-MM-YYYY
-const dobRegex = /\b(?:0[1-9]|[12][0-9]|3[01])[-/](?:0[1-9]|1[0-2])[-/](?:19|20)\d{2}\b/g;
+// DOB: DD/MM/YYYY or DD-MM-YYYY (also handles D/M/YYYY loosely)
+const dobRegex = /\b(?:0?[1-9]|[12][0-9]|3[01])[-/](?:0?[1-9]|1[0-2])[-/](?:19|20)\d{2}\b/g;
 
-// OTP: 4 or 6 digits
+// OTP: 4 or 6 digits (context-gated)
 const otpRegex = /\b(?:\d{4}|\d{6})\b/g;
 
 // Email
 const emailRegex = /\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b/g;
 
+// Bank Account: 9-18 digits (context-gated)
+const bankRegex = /\b\d{9,18}\b/g;
+
 /* -------------------- 🔥 KEYWORDS -------------------- */
 const KEYWORDS = {
-  otp: ["otp", "pin", "code", "passcode"]
+  otp: ["otp", "code", "passcode", "verification", "one-time password"],
+  bank: ["bank", "account", "acc", "ifsc", "transfer", "deposit", "savings", "current"]
 };
 
 /* -------------------- 🔥 DETECTION -------------------- */
 function detectSensitive(content) {
   const results = [];
   const seen = new Set();
+  // Track raw digit strings already claimed by higher-priority types
+  const claimedDigits = new Set();
 
   const lines = content.split("\n");
 
   for (let line of lines) {
     const lower = line.toLowerCase();
 
-    // 📞 PHONE
-    const phones = line.match(phoneRegex) || [];
-    for (let p of phones) {
-      const key = "phone" + p;
-      if (!seen.has(key)) {
-        seen.add(key);
-        results.push({ value: p, type: "phone" });
-      }
-    }
-
-    // 📅 DOB
-    const dobs = line.match(dobRegex) || [];
-    for (let d of dobs) {
-      const key = "dob" + d;
-      if (!seen.has(key)) {
-        seen.add(key);
-        results.push({ value: d, type: "dob" });
-      }
-    }
-
-    // 📧 EMAIL
+    // 📧 EMAIL (most specific — detect first)
     const emails = line.match(emailRegex) || [];
     for (let e of emails) {
-      const key = "email" + e;
+      const key = "email:" + e;
       if (!seen.has(key)) {
         seen.add(key);
         results.push({ value: e, type: "email" });
       }
     }
 
-    // 🔐 OTP
-    const otps = line.match(otpRegex) || [];
-    for (let o of otps) {
-      // Must be accompanied by context keywords in the same line to avoid matching random 4/6 digit numbers
-      if (KEYWORDS.otp.some(k => lower.includes(k))) {
-        const key = "otp" + o;
-        if (!seen.has(key)) {
-          seen.add(key);
-          results.push({ value: o, type: "otp" });
-        }
-      }
-    }
-
-    // 🪪 AADHAAR
+    // 🪪 AADHAAR (12 digits — detect before phone to avoid overlap)
     const aadhaar = line.match(aadhaarRegex) || [];
     for (let a of aadhaar) {
-      const key = "aadhaar" + a;
+      const digits = a.replace(/\D/g, "");
+      // Must be exactly 12 digits
+      if (digits.length !== 12) continue;
+      const key = "aadhaar:" + digits;
       if (!seen.has(key)) {
         seen.add(key);
+        claimedDigits.add(digits);
         results.push({ value: a, type: "aadhaar" });
       }
     }
@@ -133,16 +130,125 @@ function detectSensitive(content) {
     // 🆔 PAN
     const pan = line.match(panRegex) || [];
     for (let p of pan) {
-      const key = "pan" + p;
+      const key = "pan:" + p;
       if (!seen.has(key)) {
         seen.add(key);
         results.push({ value: p, type: "pan" });
+      }
+    }
+
+    // 📅 DOB (detect before phone/OTP so dates aren't misclassified)
+    const dobs = line.match(dobRegex) || [];
+    for (let d of dobs) {
+      const key = "dob:" + d;
+      if (!seen.has(key)) {
+        seen.add(key);
+        // Claim the digits so phone doesn't re-match them
+        claimedDigits.add(d.replace(/\D/g, ""));
+        results.push({ value: d, type: "dob" });
+      }
+    }
+
+    // 📞 PHONE (detect after Aadhaar/DOB)
+    const phones = line.match(phoneRegex) || [];
+    for (let p of phones) {
+      const rawDigits = p.replace(/\D/g, "");
+      // Extract just the 10-digit core (strip leading 91 country code if present)
+      const core = rawDigits.length > 10 ? rawDigits.slice(-10) : rawDigits;
+      // Skip if these digits were already claimed as Aadhaar or DOB
+      if (claimedDigits.has(rawDigits) || claimedDigits.has(core)) continue;
+      // Must have exactly 10 core digits starting with 6-9
+      if (core.length !== 10 || !/^[6-9]/.test(core)) continue;
+      const key = "phone:" + core;
+      if (!seen.has(key)) {
+        seen.add(key);
+        claimedDigits.add(core);
+        results.push({ value: p.trim(), type: "phone" });
+      }
+    }
+
+    // 🔐 OTP (context-gated)
+    const otps = line.match(otpRegex) || [];
+    for (let o of otps) {
+      if (claimedDigits.has(o)) continue;
+      
+      // Prevent pincodes from being flagged as OTP
+      const isPincode = lower.includes("pincode") || lower.includes("pin code") || lower.includes("zip") || lower.includes("postal");
+      if (isPincode) continue;
+
+      const hasOtpKeyword = KEYWORDS.otp.some(k => lower.includes(k)) || /\bpin\b/i.test(line);
+      if (hasOtpKeyword) {
+        const key = "otp:" + o;
+        if (!seen.has(key)) {
+          seen.add(key);
+          results.push({ value: o, type: "otp" });
+        }
+      }
+    }
+
+    // 🏦 BANK (context-gated)
+    const banks = line.match(bankRegex) || [];
+    for (let b of banks) {
+      if (claimedDigits.has(b)) continue;
+      if (KEYWORDS.bank.some(k => lower.includes(k))) {
+        const key = "bank:" + b;
+        if (!seen.has(key)) {
+          seen.add(key);
+          results.push({ value: b, type: "bank" });
+        }
       }
     }
   }
 
   return results;
 }
+
+const detectSensitiveML = async (content) => {
+  // Always run Regex detection first (100% recall on standard formats)
+  const regexResults = detectSensitive(content);
+  
+  let mlResults = [];
+  try {
+    const response = await axios.post("http://localhost:8000/detect-pii", { text: content });
+    if (response.data && response.data.detected) {
+      mlResults = response.data.detected;
+      console.log("🤖 ML PII Detected count:", mlResults.length);
+    }
+  } catch (err) {
+    console.error("❌ ML PII Service failed, using Regex only:", err.message);
+    return regexResults;
+  }
+
+  // Merge ML and Regex results
+  const merged = [];
+  const seenValues = new Set();
+
+  // Helper to normalize values for comparison (ignore whitespace, punctuation, case)
+  const normalize = (v) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  // Prioritize Regex results first
+  for (const item of regexResults) {
+    const norm = normalize(item.value);
+    if (norm) {
+      seenValues.add(norm);
+      merged.push(item);
+    }
+  }
+
+  // Add ML results if not already captured by regex
+  for (const item of mlResults) {
+    const norm = normalize(item.value);
+    if (norm && !seenValues.has(norm)) {
+      seenValues.add(norm);
+      const validTypes = ["phone", "email", "pan", "aadhaar", "bank", "dob", "otp"];
+      if (validTypes.includes(item.type)) {
+        merged.push(item);
+      }
+    }
+  }
+
+  return merged;
+};
 
 /* -------------------- 🔥 SUMMARY FROM DETECTION -------------------- */
 function generateSummary(detected) {
@@ -186,47 +292,45 @@ router.post("/scan", upload.single("file"), async (req, res) => {
     }
 
     /* -------- IMAGE -------- */
-  
-
     else if (mimeType.startsWith("image/")) {
-  try {
-    const result = await Tesseract.recognize(filePath, "eng");
+      try {
+        const result = await Tesseract.recognize(filePath, "eng");
 
-    const content = result.data.text;
+        const content = result.data.text;
 
-    if (!content || content.trim().length === 0) {
-      return res.json({
-        summary: "No readable text found in image.",
-        detected: [],
-        content: "",
-      });
+        if (!content || content.trim().length === 0) {
+          return res.json({
+            summary: "No readable text found in image.",
+            detected: [],
+            content: "",
+          });
+        }
+
+        // 🔥 REUSE SAME LOGIC
+        const detected = await detectSensitiveML(content);
+
+        let summary;
+
+        if (detected.length > 0) {
+          summary = generateSummary(detected);
+        } else {
+          summary = "The image contains text but no sensitive information.";
+        }
+
+        return res.json({
+          summary,
+          detected,
+          content,
+        });
+
+      } catch (err) {
+        console.error("OCR ERROR:", err);
+        return res.status(500).json({ error: "Image scan failed" });
+      }
     }
-
-    // 🔥 REUSE SAME LOGIC
-    const detected = detectSensitive(content);
-
-    let summary;
-
-    if (detected.length > 0) {
-      summary = generateSummary(detected);
-    } else {
-      summary = "The image contains text but no sensitive information.";
-    }
-
-    return res.json({
-      summary,
-      detected,
-      content,
-    });
-
-  } catch (err) {
-    console.error("OCR ERROR:", err);
-    return res.status(500).json({ error: "Image scan failed" });
-  }
-}
 
     /* -------- DETECT (SOURCE OF TRUTH) -------- */
-    const detected = detectSensitive(content);
+    const detected = await detectSensitiveML(content);
 
     /* -------- SUMMARY -------- */
     let summary;

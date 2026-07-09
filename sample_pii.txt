@@ -1,0 +1,7 @@
+Hello, this is a confidential document.
+My email is john.doe@example.com.
+My Indian phone number is 9876543210.
+My Date of birth is 15-08-1995.
+My Aadhaar number is 1234 5678 9012.
+My PAN Card number is ABCDE1234F.
+Please redact this sensitive information before sending it.

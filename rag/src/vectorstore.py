@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 from typing import List, Dict, Any
 from sentence_transformers import SentenceTransformer
-from src.embedding import EmbeddingPipeline
+from src.embedding import EmbeddingPipeline, get_sentence_transformer
 
 class FaissVectorStore:
     def __init__(self, persist_dir: str='faiss_store',embedding_model: str='all-MiniLM-L6-v2',chunk_size=1000,chunk_overlap=200):
@@ -13,7 +13,7 @@ class FaissVectorStore:
         self.index=None
         self.metadata=[]
         self.embedding_model = embedding_model
-        self.model=SentenceTransformer(embedding_model)
+        self.model = get_sentence_transformer(embedding_model)
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
     def build_from_documents(self,documents:List[Any]):
@@ -63,18 +63,21 @@ class FaissVectorStore:
         )
 
         chunks = emb_pipe.chunk_documents(documents)
-        embeddings = emb_pipe.embed_chunks(chunks)
+        if not chunks:
+            print("[WARNING] No chunks generated from documents.")
+            return
 
+        embeddings = emb_pipe.embed_chunks(chunks)
         metadata = [{"text": chunk.page_content} for chunk in chunks]
 
         self.add_embeddings(
-            embeddings.astype('float32'),
+            np.array(embeddings).astype('float32'),
             metadata
         )
 
         self.save()
 
-        print("✅ New file embedded into vector store")
+        print("[INFO] New file embedded into vector store")
     def add_embeddings(self,embeddings:np.ndarray,metadatas:List[Dict[str,Any]]):
         ### Here embedding is a numpy array of type float32. Eg.[[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], ...]. 
         ### Each Row is a chunk in chunks having dimension of 384 from the embeding model 'all-MiniLM-L6-v2'.

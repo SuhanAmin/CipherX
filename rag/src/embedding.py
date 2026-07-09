@@ -3,13 +3,21 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
+_MODEL_CACHE = {}
+
+def get_sentence_transformer(model_name: str) -> SentenceTransformer:
+    if model_name not in _MODEL_CACHE:
+        print(f"Loading SentenceTransformer model: {model_name}...")
+        _MODEL_CACHE[model_name] = SentenceTransformer(model_name)
+    return _MODEL_CACHE[model_name]
+
 class EmbeddingPipeline:
     def __init__(self,model_name="all-MiniLM-L6-v2",chunk_size=1000,chunk_overlap=200):
         ### Chunk size is the maximum length of each chunk, and chunk overlap is the number of characters that will overlap between consecutive chunks. This helps to maintain context across chunks when splitting larger documents.
         self.chunk_size=chunk_size
         self.chunk_overlap=chunk_overlap
-        ### model is used to convert text to vectors. SentenceTransformer is a popular library for generating sentence embeddings, and "all-MiniLM-L6-v2" is a specific pre-trained model that provides good performance for many tasks.
-        self.model=SentenceTransformer(model_name)
+        ### model is used to convert text to vectors.
+        self.model = get_sentence_transformer(model_name)
         #print(f"Info Loaded:{model_name}")
 
     def chunk_documents(self,documents:List[Any])->List[Any]:

@@ -29,3 +29,5 @@ uploads/
 faiss_store/
 __pycache__/
 *.pyc
+.env
+**/.env

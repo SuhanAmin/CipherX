@@ -89,18 +89,42 @@ const [maskedItems, setMaskedItems] = useState([]);
 
   const maskValue = (value, type) => {
     if (type === "phone") {
-      return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+      // Extract only the digits (and +)
+      const digits = value.replace(/[^\d]/g, "");
+      // Show last 4 digits, mask the rest
+      const lastFour = digits.slice(-4);
+      const maskedDigits = digits.slice(0, -4).replace(/\d/g, "X") + lastFour;
+      // If original had +91 prefix, preserve it in masked form
+      if (value.includes("+91")) {
+        return "+XX XXXXXX" + lastFour;
+      }
+      return maskedDigits;
     }
     if (type === "email") {
       const [name, domain] = value.split("@");
       return name.replace(/./g, "X") + "@" + domain;
     }
     if (type === "dob" || type === "otp") {
-      // Replace all digits with X (preserves / or - in dates)
       return value.replace(/\d/g, "X");
     }
-    if (type === "pan" || type === "aadhaar" || type === "bank") {
-      return value.slice(0, -2).replace(/./g, "X") + value.slice(-2);
+    if (type === "aadhaar") {
+      // Show last 4 digits, mask the rest, preserve spaces
+      const digits = value.replace(/[^\d]/g, "");
+      const lastFour = digits.slice(-4);
+      const masked = digits.slice(0, -4).replace(/\d/g, "X") + lastFour;
+      // Reformat with spaces every 4 chars if original had spaces
+      if (value.includes(" ")) {
+        return masked.replace(/(.{4})/g, "$1 ").trim();
+      }
+      return masked;
+    }
+    if (type === "pan") {
+      // Show last 4 characters, mask the rest
+      return value.slice(0, -4).replace(/./g, "X") + value.slice(-4);
+    }
+    if (type === "bank") {
+      // Show last 4 digits, mask the rest
+      return value.slice(0, -4).replace(/\d/g, "X") + value.slice(-4);
     }
     return value.replace(/./g, "X");
   };
@@ -108,36 +132,56 @@ const [maskedItems, setMaskedItems] = useState([]);
 const handleToggleMask = async (item) => {
   if (!scanResult) return;
 
+  const updatedDetected = scanResult.detected.map(d => {
+    if (d.original === item.original) {
+      const newMaskedState = !d.isMasked;
+      return {
+        ...d,
+        isMasked: newMaskedState,
+        value: newMaskedState ? d.masked : d.original
+      };
+    }
+    return d;
+  });
+
   setScanResult(prev => ({
     ...prev,
-    detected: prev.detected.map(d => {
-      if (d.original === item.original) {
-        const newMaskedState = !d.isMasked;
-
-        return {
-          ...d,
-          isMasked: newMaskedState,
-          value: newMaskedState ? d.masked : d.original
-        };
-      }
-      return d;
-    })
+    detected: updatedDetected
   }));
 
-  // 🔥 Update content accordingly
-  let currentContent = modifiedContent || scanResult.content || "";
+  // Reconstruct modifiedContent from original content using the latest state of all items
+  let content = scanResult.content || "";
+  for (const d of updatedDetected) {
+    if (d.isMasked) {
+      const escaped = d.original.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      let pattern = escaped;
 
-  let updatedContent = currentContent;
+      if (d.type === "phone") {
+        // Build flexible pattern: each digit can have optional spaces/dashes between
+        const digits = d.original.replace(/[^\d+]/g, '');
+        pattern = digits.split('').map((char, index) => {
+          if (index === 0) return char === '+' ? '\\+?' : char;
+          return '[\\s-]*' + char;
+        }).join('');
+      } else if (d.type === "aadhaar") {
+        const digits = d.original.replace(/[^\d]/g, '');
+        pattern = digits.split('').map((char, index) => {
+          if (index === 0) return char;
+          return '[\\s-]*' + char;
+        }).join('');
+      } else if (d.type === "dob") {
+        // Allow optional spaces around separators: "15-08-1995" matches "15 - 08 - 1995"
+        const parts = d.original.split(/[-/]/);
+        const sep = d.original.includes('/') ? '/' : '-';
+        pattern = parts.map(p => p.replace(/\d/g, '\\d')).join(`\\s*[\\-\\/]\\s*`);
+      }
 
-  if (!item.isMasked) {
-    // MASK
-    updatedContent = currentContent.replaceAll(item.original, item.masked);
-  } else {
-    // UNMASK
-    updatedContent = currentContent.replaceAll(item.masked, item.original);
+      const regex = new RegExp(pattern, "gi");
+      content = content.replace(regex, d.masked);
+    }
   }
 
-  setModifiedContent(updatedContent);
+  setModifiedContent(content);
 };
   // 🔹 Load rooms
   useEffect(() => {
@@ -368,7 +412,7 @@ const handleToggleMask = async (item) => {
 
   const handleLogout = async () => {
   try {
-    await fetch("http://localhost:5000/api/logout", {
+    await fetch("http://localhost:5000/auth/logout", {
       method: "POST",
       credentials: "include"
     });
@@ -388,11 +432,13 @@ const handleToggleMask = async (item) => {
 
   // 🔹 Analytics helpers
   const TYPE_META = {
-    phone:  { icon: "📱", label: "Phone Numbers", color: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #2563eb)" },
+    phone:  { icon: "📱", label: "Phone Numbers",   color: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #2563eb)" },
     email:  { icon: "✉️", label: "Email Addresses", color: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #7c3aed)" },
-    pan:    { icon: "🪪", label: "PAN Cards",       color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)" },
-    aadhaar:{ icon: "🆔", label: "Aadhaar Numbers", color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #dc2626)" },
-    bank:   { icon: "🏦", label: "Bank Details",    color: "#10b981", gradient: "linear-gradient(135deg, #10b981, #059669)" },
+    pan:    { icon: "🪪", label: "PAN Cards",        color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #d97706)" },
+    aadhaar:{ icon: "🆔", label: "Aadhaar Numbers",  color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #dc2626)" },
+    bank:   { icon: "🏦", label: "Bank Details",     color: "#10b981", gradient: "linear-gradient(135deg, #10b981, #059669)" },
+    dob:    { icon: "📅", label: "Date of Birth",    color: "#ec4899", gradient: "linear-gradient(135deg, #ec4899, #db2777)" },
+    otp:    { icon: "🔐", label: "OTP Codes",        color: "#f97316", gradient: "linear-gradient(135deg, #f97316, #ea580c)" },
   };
 
   const fetchAnalytics = async () => {
@@ -412,7 +458,7 @@ const handleToggleMask = async (item) => {
     fetchAnalytics();
   };
 
-  const VALID_LOG_TYPES = ["phone", "email", "pan", "aadhaar", "bank"];
+  const VALID_LOG_TYPES = ["phone", "email", "pan", "aadhaar", "bank", "dob", "otp"];
 
   const logUnmaskedItems = async (detected) => {
     if (!detected || detected.length === 0) return;
@@ -683,6 +729,24 @@ const handleToggleMask = async (item) => {
               <div className="preview-content-center">
                 {previewUrl ? (
                   <img src={previewUrl} alt="Preview" className="preview-image" />
+                ) : (modifiedContent || scanResult?.content) ? (
+                  <div className="preview-text-content" style={{
+                    padding: "20px",
+                    background: "var(--bg-secondary, rgba(0,0,0,0.15))",
+                    borderRadius: "12px",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                    fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                    fontSize: "13px",
+                    lineHeight: "1.7",
+                    color: "var(--text-primary, #e2e8f0)",
+                    maxHeight: "400px",
+                    overflowY: "auto",
+                    border: "1px solid var(--border-color, rgba(255,255,255,0.06))",
+                    transition: "all 0.3s ease"
+                  }}>
+                    {modifiedContent || scanResult?.content}
+                  </div>
                 ) : (
                   <div className="preview-file-icon">
                     <div className="icon">📄</div>
@@ -833,164 +897,55 @@ const handleToggleMask = async (item) => {
         </div>
       </div>
 
-      {/* 📞 PHONES */}
-      {scanResult.detected?.some(d => d.type === "phone") && (
+      {/* 🔑 SENSITIVE DETAILS */}
+      {scanResult.detected && scanResult.detected.length > 0 && (
         <div className="scan-section">
-          <div className="scan-section-title">📱 Indian Phone Numbers</div>
+          <div className="scan-section-title">🔑 Sensitive Details</div>
           <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "phone")
-              .map((p, i) => (
+            {scanResult.detected.map((item, i) => {
+              const getTypeLabel = (type) => {
+                switch (type) {
+                  case "phone": return "Phone Number";
+                  case "email": return "Email Address";
+                  case "dob": return "Date of Birth";
+                  case "otp": return "OTP Code";
+                  case "aadhaar": return "Aadhaar Card";
+                  case "pan": return "PAN Card";
+                  case "bank": return "Bank Account";
+                  default: return "Sensitive Item";
+                }
+              };
+              const getTypeIcon = (type) => {
+                switch (type) {
+                  case "phone": return "📞";
+                  case "email": return "✉️";
+                  case "dob": return "📅";
+                  case "otp": return "🔐";
+                  case "aadhaar": return "🪪";
+                  case "pan": return "🆔";
+                  case "bank": return "🏦";
+                  default: return "🔑";
+                }
+              };
+              return (
                 <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>📞 {p.value}</span>
+                  <span>
+                    <strong>{getTypeIcon(item.type)} {getTypeLabel(item.type)}:</strong> {item.value}
+                  </span>
                   <button
-  onClick={() => handleToggleMask(p)}
-  style={{
-    background: p.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {p.isMasked ? "Unmask" : "Mask"}
-</button>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* 📧 EMAILS */}
-      {scanResult.detected?.some(d => d.type === "email") && (
-        <div className="scan-section">
-          <div className="scan-section-title">📧 Extracted Emails</div>
-          <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "email")
-              .map((e, i) => (
-                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>✉️ {e.value}</span>
-                  <button
-                    onClick={() => handleToggleMask(e)}
+                    onClick={() => handleToggleMask(item)}
                     style={{
-                      background: e.isMasked
-                        ? "linear-gradient(135deg, #ef4444, #dc2626)"
-                        : "linear-gradient(135deg, #10b981, #059669)",
+                      background: item.isMasked
+                        ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
+                        : "linear-gradient(135deg, #10b981, #059669)", // green
                       color: "#fff"
                     }}
                   >
-                    {e.isMasked ? "Unmask" : "Mask"}
+                    {item.isMasked ? "Unmask" : "Mask"}
                   </button>
                 </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* 📅 DOB */}
-      {scanResult.detected?.some(d => d.type === "dob") && (
-        <div className="scan-section">
-          <div className="scan-section-title">📅 Date of Birth</div>
-          <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "dob")
-              .map((d, i) => (
-                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>🎂 {d.value}</span>
-                  <button
-  onClick={() => handleToggleMask(d)}
-  style={{
-    background: d.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {d.isMasked ? "Unmask" : "Mask"}
-</button>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* 🔐 OTP */}
-      {scanResult.detected?.some(d => d.type === "otp") && (
-        <div className="scan-section">
-          <div className="scan-section-title">🔐 OTP Codes</div>
-          <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "otp")
-              .map((o, i) => (
-                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>🔢 {o.value}</span>
-                  <button
-  onClick={() => handleToggleMask(o)}
-  style={{
-    background: o.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {o.isMasked ? "Unmask" : "Mask"}
-</button>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* 🪪 AADHAAR */}
-      {scanResult.detected?.some(d => d.type === "aadhaar") && (
-        <div className="scan-section">
-          <div className="scan-section-title">🪪 Aadhaar Card</div>
-          <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "aadhaar")
-              .map((a, i) => (
-                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>📄 {a.value}</span>
-                  <button
-  onClick={() => handleToggleMask(a)}
-  style={{
-    background: a.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {a.isMasked ? "Unmask" : "Mask"}
-</button>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* 🆔 PAN */}
-      {scanResult.detected?.some(d => d.type === "pan") && (
-        <div className="scan-section">
-          <div className="scan-section-title">🆔 PAN Card</div>
-          <div className="scan-list">
-            {scanResult.detected
-              .filter(d => d.type === "pan")
-              .map((p, i) => (
-                <div key={i} className="scan-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>🪪 {p.value}</span>
-                  <button
-  onClick={() => handleToggleMask(p)}
-  style={{
-    background: p.isMasked
-      ? "linear-gradient(135deg, #ef4444, #dc2626)"  // red
-      : "linear-gradient(135deg, #10b981, #059669)", // green
-    color: "#fff"
-  }}
->
-  {p.isMasked ? "Unmask" : "Mask"}
-</button>
-                </div>
-              ))}
+              );
+            })}
           </div>
         </div>
       )}
@@ -1166,6 +1121,10 @@ const handleToggleMask = async (item) => {
                           };
                         })
                       });
+                      // Initialize the live preview content with the extracted text
+                      if (data.content) {
+                        setModifiedContent(data.content);
+                      }
                     } catch (err) {
                       console.error(err);
                     } finally {

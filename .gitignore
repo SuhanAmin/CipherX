@@ -1,0 +1,41 @@
+# Env files
+.env
+**/.env
+.env.*
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python dependencies & cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+.pytest_cache/
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+out/
+
+# Application specific upload/data directories
+backend/uploads/
+mongodb-data/
+rag/faiss_store/

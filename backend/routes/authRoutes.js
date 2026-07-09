@@ -40,7 +40,8 @@ router.get(
       const token = jwt.sign(
         {
           id: req.user._id,
-          username: req.user.name || req.user.username || "User",
+          name: req.user.name || "User",
+          username: req.user.name || "User",
         },
         JWT_SECRET,
         { expiresIn: "7d" }

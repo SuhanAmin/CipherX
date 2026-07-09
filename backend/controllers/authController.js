@@ -24,7 +24,7 @@ exports.register = async (req, res) => {
     });
 
     // 🔥 Generate token (IMPORTANT)
-    const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+    const token = jwt.sign({ id: user._id, name: user.name }, JWT_SECRET, {
       expiresIn: "1d"
     });
 
@@ -52,7 +52,7 @@ exports.login = async (req, res) => {
 
   if (!isMatch) return res.status(400).json({ message: "Wrong password" });
 
-  const token = jwt.sign({ id: user._id }, JWT_SECRET, {
+  const token = jwt.sign({ id: user._id, name: user.name }, JWT_SECRET, {
     expiresIn: "1d"
   });
 

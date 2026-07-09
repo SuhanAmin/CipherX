@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>cipherx_pipeline_walkthrough.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="cipherx-step-by-step-pipeline-walkthrough">CipherX Step-by-Step Pipeline Walkthrough</h1>
+<p>Welcome to the <strong>CipherX Pipeline Walkthrough</strong>! This document explains how the entire project functions step-by-step.</p>
+<p>CipherX operates on a <strong>three-tier architecture</strong> with three servers running concurrently:</p>
+<ol>
+<li><strong>Frontend Server (Vite + React)</strong> on Port <code>5173</code> — Handles the user interface, real-time message rendering, file previewing, and interactive masking controls.</li>
+<li><strong>Backend Server (Node.js + Express + Socket.IO)</strong> on Port <code>5000</code> — Coordinates databases (MongoDB), processes WebSocket connections, handles user authentication, runs regular-expression PII scanners, and exposes file-upload paths.</li>
+<li><strong>AI / RAG Service (Python + FastAPI)</strong> on Port <code>8000</code> — Hosts the machine learning model (RandomForest classifier), extracts embeddings, creates per-user FAISS indexes, and streams answers from the Large Language Model (Gemma-4-31B).</li>
+</ol>
+<p>Here is exactly how these components work together in sequence.</p>
+<hr>
+<h2 id="step-1-user-authentication--session-setup">Step 1: User Authentication &amp; Session Setup</h2>
+<p>Before a user can chat or scan files, they must log in.</p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    actor User
+    participant React as React Frontend (5173)
+    participant Express as Express Backend (5000)
+    participant DB as MongoDB
+
+    User->>React: Enters credentials or clicks Google SSO
+    React->>Express: POST /api/auth/login OR GET /auth/google
+    Express->>DB: Query User record
+    DB-->>Express: User matches
+    Express-->>React: Returns JSON Web Token (JWT)
+    Note over React: JWT stored in localStorage
+</div></code></pre>
+<ol>
+<li><strong>User Login:</strong> The user enters credentials on the login screen (<code>Login.jsx</code>).</li>
+<li><strong>Token Generation:</strong> The backend (<code>authController.js</code>) validates the user and signs a JWT containing the user's ID and name:<pre class="hljs"><code><div><span class="hljs-keyword">const</span> token = jwt.<span class="hljs-title function_">sign</span>({ <span class="hljs-attr">id</span>: user.<span class="hljs-property">_id</span>, <span class="hljs-attr">name</span>: user.<span class="hljs-property">name</span> }, <span class="hljs-variable constant_">JWT_SECRET</span>);
+</div></code></pre>
+</li>
+<li><strong>Session Storage:</strong> The frontend receives this token, stores it in <code>localStorage</code>, and updates the application state. All future API requests will attach this JWT in the headers (<code>Authorization: Bearer &lt;token&gt;</code>).</li>
+</ol>
+<hr>
+<h2 id="step-2-live-room-join--real-time-chat">Step 2: Live Room Join &amp; Real-Time Chat</h2>
+<p>Once logged in, the user is redirected to <code>Home.jsx</code> (the main dashboard).</p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    participant React as React Frontend
+    participant Express as Socket.IO (5000)
+    participant DB as MongoDB
+
+    React->>Express: Establish WebSocket (ws://localhost:5000) with JWT
+    Express->>Express: Validate JWT & authorize connection
+    React->>Express: join_room (Room ID)
+    Express->>DB: Fetch message history
+    DB-->>Express: History messages
+    Express-->>React: emit("room_history", messages)
+</div></code></pre>
+<ol>
+<li><strong>Socket.IO Connection:</strong> The client establishes a WebSocket connection. The server validates the user's JWT inside the Socket.IO handshake middleware to prevent unauthorized eavesdropping.</li>
+<li><strong>Joining a Room:</strong> When a user selects a contact or chatroom, the client emits a <code>join_room</code> event. The server places the socket into a Socket.IO room instance (<code>socket.join(roomId)</code>).</li>
+<li><strong>Messaging:</strong> When the user types and sends a text message, it is sent to the server. The server stores it in MongoDB and broadcasts it in real-time to everyone in the room:<pre class="hljs"><code><div>io.<span class="hljs-title function_">to</span>(roomId).<span class="hljs-title function_">emit</span>(<span class="hljs-string">&quot;message:receive&quot;</span>, message);
+</div></code></pre>
+</li>
+</ol>
+<hr>
+<h2 id="step-3-document-upload--client-side-interception">Step 3: Document Upload &amp; Client-Side Interception</h2>
+<p>When the user wants to send a file (PDF, TXT, or Image), CipherX <strong>intercepts</strong> it to prevent data leaks.</p>
+<pre><code class="language-mermaid"><div class="mermaid">graph TD
+    A[User drops document into chat] --> B{What file type is it?}
+    B -- Plain Text --> C[FileReader reads raw text]
+    B -- PDF --> D[pdf.js extracts text from pages]
+    B -- Image --> E[Tesseract.js OCR extracts text from image]
+    C --> F[Text extracted successfully]
+    D --> F
+    E --> F
+    F --> G[Trigger PII Scan Pipeline]
+</div></code></pre>
+<ol>
+<li><strong>Plain Text:</strong> The browser reads the file content directly using <code>FileReader.readAsText()</code>.</li>
+<li><strong>PDF File:</strong> The frontend uses <strong>pdf.js</strong> to parse pages, extract the text content, and render a high-quality Canvas preview.</li>
+<li><strong>Image (OCR):</strong> If an image contains text, <strong>Tesseract.js</strong> runs local Optical Character Recognition (OCR) inside the browser to extract all legible characters.</li>
+</ol>
+<hr>
+<h2 id="step-4-the-dual-pii-scan-pipeline-express--fastapi">Step 4: The Dual PII Scan Pipeline (Express + FastAPI)</h2>
+<p>Once the raw text is gathered, it is sent to <code>POST /api/scan</code> on the backend. This endpoint starts the core hybrid intelligence flow:</p>
+<pre><code class="language-mermaid"><div class="mermaid">flowchart TD
+    subgraph Express Backend (Port 5000)
+        A[Extracted Text] --> B[Regex Engine]
+        B -->|High-Precision Matches| C[Regex Results]
+    end
+
+    subgraph FastAPI ML Service (Port 8000)
+        A -->|POST /detect-pii| D[Tokenization]
+        D --> E[Feature Extraction]
+        E --> F[RandomForest Classifier]
+        F --> G[IOB Sequence Decoding]
+        G --> H[Strict Format Checks]
+        H -->|High-Recall Matches| I[ML Results]
+    end
+
+    C --> J[Merge & Deduplicate Engine]
+    I --> J
+    J --> K[Final Unique PII List]
+</div></code></pre>
+<h3 id="the-merging--sanitization-logic">The Merging &amp; Sanitization Logic</h3>
+<ol>
+<li><strong>Regex Scanning:</strong> The Express server runs hand-crafted regex rules first. High-priority matches (like Email and Aadhaar) claim their match ranges so they cannot be double-counted as phone numbers or bank accounts.</li>
+<li><strong>Context-Gated Filters:</strong> Matches for OTP and Bank Accounts are only accepted if keywords like <code>&quot;otp&quot;</code>, <code>&quot;code&quot;</code>, <code>&quot;bank&quot;</code>, or <code>&quot;account&quot;</code> appear nearby on the same line. If pincode keywords like <code>&quot;postal&quot;</code> or <code>&quot;zip&quot;</code> are found, the 6-digit OTP matches are skipped.</li>
+<li><strong>FastAPI ML Classification:</strong> In parallel, the Python FastAPI service classifies each token using a trained RandomForest model, outputs predicted label sequences, and processes them through a validation check (e.g. validating dates of birth and alphanumeric structures to filter out fragmented model noise like <code>&quot;23/&quot;</code>).</li>
+<li><strong>Deduplication:</strong> The Express server merges the outputs. If a value was already found by high-precision Regex, the ML result is ignored. Otherwise, it is added.</li>
+</ol>
+<hr>
+<h2 id="step-5-interactive-masking--redaction">Step 5: Interactive Masking &amp; Redaction</h2>
+<p>The detected PII is returned to the React frontend and displayed in the <strong>🔑 Sensitive Details</strong> panel.</p>
+<pre class="hljs"><code><div>🔑 Sensitive Details
+-----------------------------------------------
+🔒 Phone: +91 90999 90999         [ Mask / Unmask ]
+🔒 DOB: 21-11-2004               [ Mask / Unmask ]
+</div></code></pre>
+<ol>
+<li><strong>State Management:</strong> React keeps track of which items are toggled &quot;Masked&quot;.</li>
+<li><strong>Masking Calculations:</strong> If an item is masked, the preview text replaces the character ranges with standard redacting masks:
+<ul>
+<li><em>Phone Number:</em> <code>+91 90999 90999</code> becomes <code>****XX9999</code> (keeps final 4 digits for context)</li>
+<li><em>Aadhaar:</em> <code>1234 5678 9012</code> becomes <code>XXXX XXXX 9012</code></li>
+<li><em>Email:</em> <code>alex@gmail.com</code> becomes <code>a***@gmail.com</code></li>
+</ul>
+</li>
+<li><strong>Real-time Feedback:</strong> The main document preview window updates live, displaying the masked version instantly.</li>
+</ol>
+<hr>
+<h2 id="step-6-secured-file-transmission--vector-ingestion">Step 6: Secured File Transmission &amp; Vector Ingestion</h2>
+<p>When the user reviews the document and clicks <strong>Send</strong>:</p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    participant React as React Frontend
+    participant Express as Express Server
+    participant FastAPI as Python FastAPI
+    participant DB as MongoDB
+
+    React->>React: Generate sanitised text (with masks applied)
+    React->>Express: POST /api/upload (Sanitised text file)
+    Express->>FastAPI: POST /ingest (Original file path)
+    FastAPI->>FastAPI: Extract text, chunk, embed (MiniLM)
+    FastAPI->>FastAPI: Store in user's FAISS index
+    Express->>DB: Log unmasked types to SensitiveLog (for audit)
+    Express-->>React: File URL returned
+    React->>Express: socket.emit("message:send", { fileUrl })
+</div></code></pre>
+<ol>
+<li><strong>Masked File Creation:</strong> React creates a new text file containing the <strong>masked version</strong> of the document.</li>
+<li><strong>File Storage:</strong> The masked file is uploaded to the backend via Multer and saved in <code>/uploads/</code>.</li>
+<li><strong>RAG Ingestion:</strong> The Express server notifies the Python RAG service to ingest the <strong>original</strong> file into the user's vector store (so that the RAG model can query the actual unredacted information later, privately).</li>
+<li><strong>Audit Logging:</strong> The backend logs the <em>count</em> and <em>type</em> of masked items in MongoDB (<code>SensitiveLog.js</code>) so the user can see their personal privacy protection statistics.</li>
+</ol>
+<hr>
+<h2 id="step-7-document-qa-rag-assistant">Step 7: Document Q&amp;A (RAG Assistant)</h2>
+<p>A special system user <code>&quot;cipherx&quot;</code> acts as the document RAG assistant.</p>
+<pre><code class="language-mermaid"><div class="mermaid">sequenceDiagram
+    actor User
+    participant React as React Frontend
+    participant Express as Express Server
+    participant FastAPI as Python FastAPI
+    participant OR as OpenRouter (Gemma 4)
+
+    User->>React: Types question in RAG chat
+    React->>Express: socket.emit("message:send", { text })
+    Express->>FastAPI: POST /query (question, userId)
+    FastAPI->>FastAPI: Embed question & search FAISS index
+    FastAPI->>FastAPI: Retrieve top-3 most relevant document chunks
+    FastAPI->>OR: POST /chat/completions (context + question)
+    OR-->>FastAPI: Stream tokens (Server-Sent Events)
+    FastAPI-->>Express: Stream text chunks
+    Express-->>React: Send tokens in real-time
+    React->>User: Displays streaming response
+</div></code></pre>
+<ol>
+<li><strong>Query Embeddings:</strong> When you ask the bot a question, the Python service converts the question into a semantic vector using <code>SentenceTransformer</code>.</li>
+<li><strong>FAISS Retrieval:</strong> It performs a vector similarity search in the user's FAISS directory to find the top 3 matching chunks of text from their uploaded files.</li>
+<li><strong>LLM Prompt Enrichment:</strong> It constructs a context prompt:<pre class="hljs"><code><div>Answer the question using the context:
+[Context retrieved from FAISS]
+Question: [User's question]
+</div></code></pre>
+</li>
+<li><strong>SSE Streaming:</strong> The prompt is sent to OpenRouter. The streamed response is piped back to the Node server, which broadcasts the tokens in real-time to the React UI, creating a typing-assistant effect.</li>
+</ol>
+
+</body>
+</html>

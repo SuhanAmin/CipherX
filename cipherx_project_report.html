@@ -1,0 +1,1579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>cipherx_project_report.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> or <div class="page"></div> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="cipherx--intelligent-secure-communication-platform">CipherX — Intelligent Secure Communication Platform</h1>
+<h2 id="project-report--technical-documentation">Project Report &amp; Technical Documentation</h2>
+<hr>
+<h2 id="1-project-overview">1. Project Overview</h2>
+<p><strong>CipherX</strong> is an end-to-end intelligent secure communication platform that combines real-time encrypted messaging with AI-powered document intelligence. It enables users to chat securely, share files, and automatically detect, classify, and mask <strong>Personally Identifiable Information (PII)</strong> before transmission — ensuring data privacy by design.</p>
+<p>The platform addresses a critical gap in modern communication tools: the accidental leakage of sensitive data (phone numbers, Aadhaar, PAN, bank accounts, etc.) through document sharing. CipherX intercepts files at the point of sharing, scans them using a hybrid Regex + ML pipeline, presents detected PII to the user for selective masking, and only transmits the sanitized version.</p>
+<hr>
+<h2 id="2-system-architecture">2. System Architecture</h2>
+<pre><code class="language-mermaid"><div class="mermaid">graph TB
+    subgraph "Frontend — React + Vite"
+        A[Login / Register] --> B[Home Dashboard]
+        B --> C[Real-Time Chat]
+        B --> D[File Upload & Preview]
+        D --> E[PII Scan Trigger]
+        E --> F[Sensitive Details Panel]
+        F --> G[Mask/Unmask Controls]
+        G --> H[Secured File Send]
+    end
+
+    subgraph "Backend — Node.js Express"
+        I[Auth Routes] --> J[JWT Middleware]
+        K[Scan Route] --> L[Regex PII Engine]
+        K --> M[ML PII Service Call]
+        L --> N[Merge & Deduplicate]
+        M --> N
+        N --> O[Return Detected PII]
+        P[Upload Route] --> Q[File Storage]
+        R[Analytics Route] --> S[Sensitive Logs DB]
+        T[Socket.IO Server] --> U[Real-Time Messaging]
+    end
+
+    subgraph "RAG Service — Python FastAPI"
+        V[/detect-pii Endpoint] --> W[Tokenizer]
+        W --> X[Feature Extraction]
+        X --> Y[RandomForest Classifier]
+        Y --> Z[IOB Decoding]
+        Z --> AA[Post-Processing & Validation]
+        AB[/query Endpoint] --> AC[FAISS Vector Search]
+        AC --> AD[LLM Streaming Response]
+        AE[/ingest Endpoint] --> AF[Document Chunking]
+        AF --> AG[Sentence Embeddings]
+        AG --> AH[FAISS Index Storage]
+    end
+
+    subgraph "External Services"
+        AI[OpenRouter LLM API]
+        AJ[Google OAuth 2.0]
+    end
+
+    subgraph "Database"
+        AK[(MongoDB)]
+    end
+
+    B --> I
+    D --> K
+    H --> P
+    B --> R
+    C --> T
+    K --> V
+    AB --> AI
+    I --> AJ
+    J --> AK
+    T --> AK
+    S --> AK
+</div></code></pre>
+<hr>
+<h2 id="3-detailed-working--step-by-step">3. Detailed Working — Step by Step</h2>
+<h3 id="step-1--user-authentication">Step 1 — User Authentication</h3>
+<p>The user registers or logs in via <strong>email/password</strong> or <strong>Google OAuth 2.0</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Register</td>
+<td><code>POST /auth/register</code> — password hashed with <strong>bcrypt</strong>, user stored in MongoDB</td>
+</tr>
+<tr>
+<td>Login</td>
+<td><code>POST /auth/login</code> — credentials verified, <strong>JWT token</strong> issued (stored in <code>localStorage</code>)</td>
+</tr>
+<tr>
+<td>Google SSO</td>
+<td><code>GET /auth/google</code> → Google OAuth flow → callback creates/links user → JWT issued</td>
+</tr>
+<tr>
+<td>Session</td>
+<td>JWT token sent as <code>Authorization: Bearer &lt;token&gt;</code> header on all subsequent API calls</td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-2--real-time-chat">Step 2 — Real-Time Chat</h3>
+<p>Once authenticated, the user enters the <strong>Home Dashboard</strong> which establishes a <strong>Socket.IO</strong> WebSocket connection.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Implementation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Room Management</td>
+<td>Users create/join chat rooms; members stored in MongoDB <code>Room</code> collection</td>
+</tr>
+<tr>
+<td>Message Send</td>
+<td><code>socket.emit(&quot;message:send&quot;)</code> → server validates room membership → stores <code>Message</code> in MongoDB → broadcasts to room via <code>io.to()</code></td>
+</tr>
+<tr>
+<td>Typing Indicators</td>
+<td><code>socket.emit(&quot;typing&quot;)</code> → broadcast to room members in real-time</td>
+</tr>
+<tr>
+<td>Presence</td>
+<td>Online/offline status tracked via <code>onlineUsers</code> Map; emitted as <code>presence:online</code> / <code>presence:offline</code> events</td>
+</tr>
+<tr>
+<td>AI Chat</td>
+<td>Special <code>&quot;cipherx&quot;</code> room ID routes messages to the <strong>RAG AI assistant</strong> instead of MongoDB</td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-3--file-upload--preview">Step 3 — File Upload &amp; Preview</h3>
+<p>When a user attaches a file for sharing, the frontend renders a <strong>live preview</strong> before sending:</p>
+<table>
+<thead>
+<tr>
+<th>File Type</th>
+<th>Preview Method</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Plain Text (<code>.txt</code>, <code>.csv</code>)</td>
+<td>Read via <code>FileReader.readAsText()</code> → rendered in a <code>&lt;pre&gt;</code> block</td>
+</tr>
+<tr>
+<td>PDF</td>
+<td>Rendered using <strong>pdf.js</strong> canvas rendering</td>
+</tr>
+<tr>
+<td>Images (<code>.jpg</code>, <code>.png</code>)</td>
+<td>Displayed as <code>&lt;img&gt;</code> with <code>URL.createObjectURL()</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-4--pii-scanning-the-core-intelligence">Step 4 — PII Scanning (The Core Intelligence)</h3>
+<p>The file content is sent to <code>POST /api/scan</code> which triggers a <strong>dual-engine detection pipeline</strong>:</p>
+<h4 id="engine-1-regex-detection-high-precision">Engine 1: Regex Detection (High Precision)</h4>
+<p>The backend runs purpose-built regular expressions against the extracted text, line by line:</p>
+<table>
+<thead>
+<tr>
+<th>PII Type</th>
+<th>Regex Pattern</th>
+<th>Example Match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Phone</strong></td>
+<td><code>(?:\+91[\s-]?)?(?:0)?[6-9]\d[\s-]?...(?!\d)</code></td>
+<td><code>+91 90999 90999</code>, <code>9876543210</code></td>
+</tr>
+<tr>
+<td><strong>Aadhaar</strong></td>
+<td><code>\b\d{4}[\s-]?\d{4}[\s-]?\d{4}\b</code> (exactly 12 digits)</td>
+<td><code>1234 5678 9012</code></td>
+</tr>
+<tr>
+<td><strong>PAN</strong></td>
+<td><code>\b[A-Z]{5}[0-9]{4}[A-Z]\b</code></td>
+<td><code>ABCDE1234F</code></td>
+</tr>
+<tr>
+<td><strong>DOB</strong></td>
+<td><code>\b(?:0?[1-9]|[12][0-9]|3[01])[-/]...</code></td>
+<td><code>21-11-2004</code></td>
+</tr>
+<tr>
+<td><strong>Email</strong></td>
+<td><code>\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-z]{2,}\b</code></td>
+<td><code>user@example.com</code></td>
+</tr>
+<tr>
+<td><strong>OTP</strong></td>
+<td><code>\b(?:\d{4}|\d{6})\b</code> (context-gated)</td>
+<td><code>1234</code> (only if near keywords like &quot;otp&quot;, &quot;code&quot;)</td>
+</tr>
+<tr>
+<td><strong>Bank</strong></td>
+<td><code>\b\d{9,18}\b</code> (context-gated)</td>
+<td><code>123456789012</code> (only if near &quot;bank&quot;, &quot;account&quot;)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Priority Order</strong>: Email → Aadhaar → PAN → DOB → Phone → OTP → Bank. Higher-priority matches &quot;claim&quot; their digit spans so lower-priority scanners cannot re-match them.</p>
+<p><strong>Context Gating</strong>: OTP and Bank matches only fire if the surrounding line contains relevant keywords (e.g., <code>&quot;otp&quot;</code>, <code>&quot;verification&quot;</code>, <code>&quot;bank&quot;</code>, <code>&quot;account&quot;</code>). Additionally, 6-digit OTP candidates are rejected if the line contains pincode/postal/zip keywords.</p>
+<h4 id="engine-2-ml-classification-high-recall">Engine 2: ML Classification (High Recall)</h4>
+<p>Simultaneously, the text is sent to the Python FastAPI service at <code>POST /detect-pii</code>:</p>
+<pre><code class="language-mermaid"><div class="mermaid">graph LR
+    A[Raw Text] --> B[Tokenizer]
+    B --> C[Feature Extraction]
+    C --> D[RandomForest Classifier]
+    D --> E[IOB Label Decoding]
+    E --> F[Structural Post-Processing]
+    F --> G[Validated PII Entities]
+</div></code></pre>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Tokenization</strong></td>
+<td>Text split into tokens preserving emails as single tokens, separating punctuation</td>
+</tr>
+<tr>
+<td><strong>Feature Extraction</strong></td>
+<td>For each token: character shape, length, case, prefix/suffix tokens (±2 window), contextual keywords (±3 window)</td>
+</tr>
+<tr>
+<td><strong>Classification</strong></td>
+<td>Trained <strong>scikit-learn RandomForest</strong> pipeline predicts IOB labels (<code>B-phone</code>, <code>I-aadhaar</code>, <code>O</code>, etc.)</td>
+</tr>
+<tr>
+<td><strong>IOB Decoding</strong></td>
+<td>Consecutive <code>B-</code> and <code>I-</code> labels grouped into complete entity spans</td>
+</tr>
+<tr>
+<td><strong>Post-Processing</strong></td>
+<td>Structural validation layer that:</td>
+</tr>
+<tr>
+<td></td>
+<td>• Re-maps misclassified types (e.g., 10-digit &quot;aadhaar&quot; → &quot;phone&quot;)</td>
+</tr>
+<tr>
+<td></td>
+<td>• Validates DOB format against date patterns</td>
+</tr>
+<tr>
+<td></td>
+<td>• Validates PAN format (<code>[A-Z]{5}\d{4}[A-Z]</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td>• Validates Aadhaar digit count (exactly 12)</td>
+</tr>
+<tr>
+<td></td>
+<td>• Validates email structure</td>
+</tr>
+<tr>
+<td></td>
+<td>• Filters out artifacts (country codes alone, partial fragments like <code>&quot;23/&quot;</code>)</td>
+</tr>
+<tr>
+<td></td>
+<td>• Rejects pincodes from OTP classification using line-context analysis</td>
+</tr>
+</tbody>
+</table>
+<h4 id="merging-strategy">Merging Strategy</h4>
+<pre class="hljs"><code><div>regexResults (100% precision)  ──┐
+                                 ├── Normalize → Deduplicate → Merged List
+mlResults (high recall)  ────────┘
+</div></code></pre>
+<p>Regex results are prioritized. ML results are added only if their normalized value is not already captured by regex. This ensures zero false negatives on standard formats while gaining contextual recall from the ML model.</p>
+<h3 id="step-5--ai-summary-generation">Step 5 — AI Summary Generation</h3>
+<p>The first 800 characters of the document are sent to an <strong>LLM</strong> (Google Gemma 4 31B via OpenRouter API) to generate a human-readable summary of the document's contents. This summary is displayed at the top of the Sensitive Details panel.</p>
+<h3 id="step-6--user-review--selective-masking">Step 6 — User Review &amp; Selective Masking</h3>
+<p>The frontend displays all detected PII in a unified <strong>&quot;🔑 Sensitive Details&quot;</strong> panel:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flat List</td>
+<td>All PII types shown in a single list with type icon and label</td>
+</tr>
+<tr>
+<td>Mask Button</td>
+<td>Toggles masking — replaces the value in the document preview with <code>****XXXX</code> (showing last 4 digits for phone/Aadhaar)</td>
+</tr>
+<tr>
+<td>Real-Time Preview</td>
+<td>Document preview updates instantly as items are masked/unmasked</td>
+</tr>
+<tr>
+<td>Industry-Standard Redaction</td>
+<td>Phone: <code>****XX6789</code>, Aadhaar: <code>XXXX XXXX 9012</code>, PAN: <code>XXXXX1234X</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="step-7--secured-file-transmission">Step 7 — Secured File Transmission</h3>
+<p>When the user clicks <strong>Send</strong>:</p>
+<ol>
+<li>The <strong>modified</strong> (masked) document content is packaged as a new <code>Blob</code></li>
+<li>Uploaded to <code>POST /api/upload</code> (JWT-authenticated) → stored in <code>/uploads/</code></li>
+<li>The upload URL is sent via Socket.IO to the chat room</li>
+<li><strong>Unmasked items</strong> are logged to <code>POST /api/analytics/log</code> for the user's privacy audit trail</li>
+</ol>
+<h3 id="step-8--rag-ai-assistant">Step 8 — RAG AI Assistant</h3>
+<p>CipherX includes a built-in AI assistant powered by <strong>Retrieval-Augmented Generation (RAG)</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Technology</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Embeddings</td>
+<td><strong>SentenceTransformers</strong> (<code>all-MiniLM-L6-v2</code>)</td>
+</tr>
+<tr>
+<td>Vector Store</td>
+<td><strong>FAISS</strong> (Facebook AI Similarity Search)</td>
+</tr>
+<tr>
+<td>LLM</td>
+<td><strong>Google Gemma 4 31B</strong> via OpenRouter API</td>
+</tr>
+<tr>
+<td>Streaming</td>
+<td>Server-Sent Events (SSE) parsed and streamed to frontend</td>
+</tr>
+</tbody>
+</table>
+<p>When a user uploads a file, its content is chunked, embedded, and stored in a per-user FAISS index. Subsequent queries retrieve the top-k most relevant chunks, inject them as context into the LLM prompt, and stream the response back in real-time.</p>
+<hr>
+<h2 id="4-technology-stack">4. Technology Stack</h2>
+<h3 id="frontend">Frontend</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>React</strong></td>
+<td>19.x</td>
+<td>Component-based UI framework</td>
+</tr>
+<tr>
+<td><strong>Vite</strong></td>
+<td>8.x</td>
+<td>Lightning-fast dev server and bundler</td>
+</tr>
+<tr>
+<td><strong>React Router DOM</strong></td>
+<td>7.x</td>
+<td>Client-side routing (Login, Register, Home)</td>
+</tr>
+<tr>
+<td><strong>Socket.IO Client</strong></td>
+<td>4.x</td>
+<td>Real-time WebSocket communication</td>
+</tr>
+<tr>
+<td><strong>Axios</strong></td>
+<td>1.x</td>
+<td>HTTP client for API calls</td>
+</tr>
+<tr>
+<td><strong>Vanilla CSS</strong></td>
+<td>—</td>
+<td>Custom styling with glassmorphism, gradients, animations</td>
+</tr>
+</tbody>
+</table>
+<h3 id="backend">Backend</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Node.js</strong></td>
+<td>LTS</td>
+<td>Server runtime</td>
+</tr>
+<tr>
+<td><strong>Express</strong></td>
+<td>5.x</td>
+<td>HTTP framework and REST API router</td>
+</tr>
+<tr>
+<td><strong>Socket.IO</strong></td>
+<td>4.x</td>
+<td>Real-time bidirectional WebSocket server</td>
+</tr>
+<tr>
+<td><strong>Mongoose</strong></td>
+<td>9.x</td>
+<td>MongoDB ODM for data modeling</td>
+</tr>
+<tr>
+<td><strong>JWT (jsonwebtoken)</strong></td>
+<td>9.x</td>
+<td>Stateless authentication tokens</td>
+</tr>
+<tr>
+<td><strong>bcrypt</strong></td>
+<td>6.x</td>
+<td>Password hashing (10 salt rounds)</td>
+</tr>
+<tr>
+<td><strong>Passport.js</strong></td>
+<td>0.7</td>
+<td>Google OAuth 2.0 SSO strategy</td>
+</tr>
+<tr>
+<td><strong>Multer</strong></td>
+<td>2.x</td>
+<td>Multipart file upload handling</td>
+</tr>
+<tr>
+<td><strong>Tesseract.js</strong></td>
+<td>7.x</td>
+<td>OCR — extract text from images</td>
+</tr>
+<tr>
+<td><strong>pdf-parse</strong></td>
+<td>1.x</td>
+<td>Extract text from PDF documents</td>
+</tr>
+<tr>
+<td><strong>pdf-lib</strong></td>
+<td>1.x</td>
+<td>PDF generation and manipulation</td>
+</tr>
+<tr>
+<td><strong>Axios</strong></td>
+<td>1.x</td>
+<td>HTTP client for calling ML and LLM services</td>
+</tr>
+<tr>
+<td><strong>Morgan</strong></td>
+<td>1.x</td>
+<td>HTTP request logging middleware</td>
+</tr>
+<tr>
+<td><strong>dotenv</strong></td>
+<td>17.x</td>
+<td>Environment variable management</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rag--ml-service">RAG / ML Service</h3>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Version</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Python</strong></td>
+<td>3.10</td>
+<td>Runtime</td>
+</tr>
+<tr>
+<td><strong>FastAPI</strong></td>
+<td>—</td>
+<td>Async HTTP framework for ML endpoints</td>
+</tr>
+<tr>
+<td><strong>Uvicorn</strong></td>
+<td>—</td>
+<td>ASGI server</td>
+</tr>
+<tr>
+<td><strong>scikit-learn</strong></td>
+<td>—</td>
+<td>RandomForest classifier for PII detection</td>
+</tr>
+<tr>
+<td><strong>SentenceTransformers</strong></td>
+<td>—</td>
+<td>Semantic text embeddings (<code>all-MiniLM-L6-v2</code>)</td>
+</tr>
+<tr>
+<td><strong>FAISS</strong></td>
+<td>—</td>
+<td>High-performance vector similarity search</td>
+</tr>
+<tr>
+<td><strong>Pydantic</strong></td>
+<td>—</td>
+<td>Request/response validation models</td>
+</tr>
+</tbody>
+</table>
+<h3 id="database--external-services">Database &amp; External Services</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>MongoDB</strong></td>
+<td>Primary database — Users, Rooms, Messages, SensitiveLog</td>
+</tr>
+<tr>
+<td><strong>OpenRouter API</strong></td>
+<td>LLM gateway — routes to Google Gemma 4 31B for summaries and RAG</td>
+</tr>
+<tr>
+<td><strong>Google OAuth 2.0</strong></td>
+<td>Social sign-in authentication</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="5-database-schema">5. Database Schema</h2>
+<pre><code class="language-mermaid"><div class="mermaid">erDiagram
+    USER {
+        ObjectId _id
+        String name
+        String email
+        String password
+        String googleId
+        Boolean online
+        Date lastSeen
+    }
+    ROOM {
+        ObjectId _id
+        ObjectId[] members
+        Date createdAt
+    }
+    MESSAGE {
+        ObjectId _id
+        ObjectId roomId
+        ObjectId senderId
+        String content
+        String type
+        Date createdAt
+    }
+    SENSITIVE_LOG {
+        ObjectId _id
+        ObjectId user
+        String type
+        String maskedValue
+        Date createdAt
+    }
+
+    USER ||--o{ ROOM : "members"
+    USER ||--o{ MESSAGE : "senderId"
+    ROOM ||--o{ MESSAGE : "roomId"
+    USER ||--o{ SENSITIVE_LOG : "user"
+</div></code></pre>
+<hr>
+<h2 id="6-api-endpoints">6. API Endpoints</h2>
+<h3 id="authentication">Authentication</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Auth</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/auth/register</code></td>
+<td>✗</td>
+<td>Create new user account</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/auth/login</code></td>
+<td>✗</td>
+<td>Login and receive JWT</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/auth/google</code></td>
+<td>✗</td>
+<td>Initiate Google OAuth flow</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/auth/google/callback</code></td>
+<td>✗</td>
+<td>Google OAuth callback</td>
+</tr>
+</tbody>
+</table>
+<h3 id="core-features">Core Features</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Auth</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/scan</code></td>
+<td>✗</td>
+<td>Upload file → extract text → detect PII → return results</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/upload</code></td>
+<td>✓</td>
+<td>Upload secured/masked file to server storage</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/health</code></td>
+<td>✗</td>
+<td>Server health check</td>
+</tr>
+</tbody>
+</table>
+<h3 id="chat--rooms">Chat &amp; Rooms</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Auth</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/rooms/create</code></td>
+<td>✓</td>
+<td>Create a new chat room</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/rooms</code></td>
+<td>✓</td>
+<td>List user's rooms</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/rooms/:id/messages</code></td>
+<td>✓</td>
+<td>Fetch room message history</td>
+</tr>
+</tbody>
+</table>
+<h3 id="analytics">Analytics</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Auth</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/analytics/log</code></td>
+<td>✓</td>
+<td>Log unmasked sensitive items for audit</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/analytics</code></td>
+<td>✓</td>
+<td>Get user's PII exposure statistics</td>
+</tr>
+</tbody>
+</table>
+<h3 id="rag-service-port-8000">RAG Service (Port 8000)</h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Endpoint</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/detect-pii</code></td>
+<td>ML-based PII detection</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/query</code></td>
+<td>RAG question answering (streaming)</td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/ingest</code></td>
+<td>Ingest file into vector store</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/</code></td>
+<td>Health check</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="7-security-architecture">7. Security Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Mechanism</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Authentication</strong></td>
+<td>JWT tokens with configurable secret; Google OAuth 2.0 SSO</td>
+</tr>
+<tr>
+<td><strong>Password Storage</strong></td>
+<td>bcrypt hashing (never stored in plain text)</td>
+</tr>
+<tr>
+<td><strong>API Protection</strong></td>
+<td><code>authenticate</code> middleware validates JWT on protected routes</td>
+</tr>
+<tr>
+<td><strong>Socket Security</strong></td>
+<td>Socket.IO <code>io.use()</code> middleware verifies JWT before connection</td>
+</tr>
+<tr>
+<td><strong>File Handling</strong></td>
+<td>Multer with server-side storage; files stored in <code>/uploads/</code></td>
+</tr>
+<tr>
+<td><strong>PII Masking</strong></td>
+<td>Client-side masking before upload; masked values logged for audit</td>
+</tr>
+<tr>
+<td><strong>Environment Secrets</strong></td>
+<td>API keys and secrets managed via <code>.env</code> files (dotenv)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="8-business-model-canvas">8. Business Model Canvas</h2>
+<pre><code class="language-mermaid"><div class="mermaid">block-beta
+    columns 5
+
+    block:KP:1
+        A["🤝 Key Partners"]
+    end
+    block:KA:1
+        B["🔧 Key Activities"]
+    end
+    block:VP:1
+        C["💎 Value Propositions"]
+    end
+    block:CR:1
+        D["❤️ Customer Relationships"]
+    end
+    block:CS:1
+        E["👥 Customer Segments"]
+    end
+
+    block:KR:1
+        F["📦 Key Resources"]
+    end
+    block:CH:2
+        G["📣 Channels"]
+    end
+    block:RS:2
+        H["💰 Revenue Streams"]
+    end
+</div></code></pre>
+<h3 id="-key-partners">🤝 Key Partners</h3>
+<table>
+<thead>
+<tr>
+<th>Partner</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>OpenRouter / Google</strong></td>
+<td>LLM API provider (Gemma 4 31B) for AI summaries and RAG</td>
+</tr>
+<tr>
+<td><strong>Google Cloud</strong></td>
+<td>OAuth 2.0 identity provider for SSO</td>
+</tr>
+<tr>
+<td><strong>MongoDB Atlas</strong></td>
+<td>Managed database hosting (production)</td>
+</tr>
+<tr>
+<td><strong>Cloud Providers (AWS/GCP/Azure)</strong></td>
+<td>Infrastructure hosting, CDN, and compute</td>
+</tr>
+<tr>
+<td><strong>Open-Source Community</strong></td>
+<td>React, FAISS, scikit-learn, SentenceTransformers ecosystems</td>
+</tr>
+<tr>
+<td><strong>Regulatory Bodies (CERT-In, DPDP)</strong></td>
+<td>Compliance guidance for India's data protection laws</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-key-activities">🔧 Key Activities</h3>
+<table>
+<thead>
+<tr>
+<th>Activity</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>PII Detection R&amp;D</strong></td>
+<td>Continuous improvement of ML models and regex patterns for new PII types</td>
+</tr>
+<tr>
+<td><strong>Platform Development</strong></td>
+<td>Feature development (video calls, group file sharing, admin dashboards)</td>
+</tr>
+<tr>
+<td><strong>Model Training</strong></td>
+<td>Retraining RandomForest on expanded datasets; evaluating transformer-based NER</td>
+</tr>
+<tr>
+<td><strong>Security Audits</strong></td>
+<td>Penetration testing, vulnerability scanning, compliance certification</td>
+</tr>
+<tr>
+<td><strong>User Onboarding</strong></td>
+<td>Documentation, tutorials, enterprise integration guides</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-value-propositions">💎 Value Propositions</h3>
+<table>
+<thead>
+<tr>
+<th>Proposition</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Automatic PII Detection</strong></td>
+<td>AI-powered scanning catches sensitive data humans miss — phone numbers, Aadhaar, PAN, DOB, bank accounts, emails, OTPs</td>
+</tr>
+<tr>
+<td><strong>User-Controlled Masking</strong></td>
+<td>Users decide exactly what to redact before sharing — full transparency and control</td>
+</tr>
+<tr>
+<td><strong>Hybrid Detection Engine</strong></td>
+<td>Regex (100% precision on standard formats) + ML (high recall on contextual patterns) = industry-leading accuracy</td>
+</tr>
+<tr>
+<td><strong>Secure Communication</strong></td>
+<td>End-to-end encrypted messaging with real-time presence and typing indicators</td>
+</tr>
+<tr>
+<td><strong>Document Intelligence</strong></td>
+<td>AI-generated file summaries and RAG-powered Q&amp;A over shared documents</td>
+</tr>
+<tr>
+<td><strong>Compliance Ready</strong></td>
+<td>Audit trail of all PII exposure events; aligned with India's DPDP Act 2023</td>
+</tr>
+<tr>
+<td><strong>Zero Configuration</strong></td>
+<td>Works instantly — no training data, no setup; upload a file and get results</td>
+</tr>
+</tbody>
+</table>
+<h3 id="️-customer-relationships">❤️ Customer Relationships</h3>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Self-Service</strong></td>
+<td>Web-based platform with intuitive UI; no training required</td>
+</tr>
+<tr>
+<td><strong>Automated Assistance</strong></td>
+<td>Built-in CipherX AI assistant answers questions about shared documents</td>
+</tr>
+<tr>
+<td><strong>Community Support</strong></td>
+<td>Open-source components; GitHub issues and discussions</td>
+</tr>
+<tr>
+<td><strong>Enterprise Support</strong></td>
+<td>Dedicated onboarding, SLA-backed support for B2B customers</td>
+</tr>
+<tr>
+<td><strong>Privacy Dashboard</strong></td>
+<td>Analytics panel showing historical PII exposure data per user</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-customer-segments">👥 Customer Segments</h3>
+<table>
+<thead>
+<tr>
+<th>Segment</th>
+<th>Use Case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Individuals</strong></td>
+<td>Privacy-conscious users sharing personal documents (resumes, IDs, forms)</td>
+</tr>
+<tr>
+<td><strong>Small Businesses</strong></td>
+<td>Teams sharing client documents, contracts, financial records</td>
+</tr>
+<tr>
+<td><strong>Healthcare</strong></td>
+<td>Clinics and hospitals sharing patient records with PII protection</td>
+</tr>
+<tr>
+<td><strong>Education</strong></td>
+<td>Schools sharing student records, mark sheets, certificates</td>
+</tr>
+<tr>
+<td><strong>Financial Services</strong></td>
+<td>Banks and fintechs processing KYC documents</td>
+</tr>
+<tr>
+<td><strong>Legal Firms</strong></td>
+<td>Lawyers sharing case documents with client PII</td>
+</tr>
+<tr>
+<td><strong>Government</strong></td>
+<td>Public sector agencies handling citizen data</td>
+</tr>
+<tr>
+<td><strong>HR Departments</strong></td>
+<td>Companies processing employee documents (Aadhaar, PAN, bank details)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-key-resources">📦 Key Resources</h3>
+<table>
+<thead>
+<tr>
+<th>Resource</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ML PII Model</strong></td>
+<td>Trained RandomForest pipeline (<code>pii_model.pkl</code>) — 2.4 MB serialized model</td>
+</tr>
+<tr>
+<td><strong>Regex Engine</strong></td>
+<td>Hand-tuned regular expressions for 7 Indian PII types</td>
+</tr>
+<tr>
+<td><strong>FAISS Vector Store</strong></td>
+<td>Per-user document embeddings for RAG retrieval</td>
+</tr>
+<tr>
+<td><strong>SentenceTransformer</strong></td>
+<td><code>all-MiniLM-L6-v2</code> embedding model for semantic search</td>
+</tr>
+<tr>
+<td><strong>Engineering Team</strong></td>
+<td>Full-stack developers, ML engineers, security specialists</td>
+</tr>
+<tr>
+<td><strong>Cloud Infrastructure</strong></td>
+<td>Servers, databases, CDN, monitoring</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-channels">📣 Channels</h3>
+<table>
+<thead>
+<tr>
+<th>Channel</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Web Application</strong></td>
+<td>Primary access point — <code>https://cipherx.app</code></td>
+</tr>
+<tr>
+<td><strong>API / SDK</strong></td>
+<td>RESTful API for enterprise integration into existing workflows</td>
+</tr>
+<tr>
+<td><strong>Browser Extension</strong> (future)</td>
+<td>Scan attachments in Gmail, Outlook before sending</td>
+</tr>
+<tr>
+<td><strong>Mobile App</strong> (future)</td>
+<td>React Native companion app</td>
+</tr>
+<tr>
+<td><strong>Partnerships</strong></td>
+<td>White-label solution for enterprise messaging platforms</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-revenue-streams">💰 Revenue Streams</h3>
+<table>
+<thead>
+<tr>
+<th>Stream</th>
+<th>Model</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Freemium SaaS</strong></td>
+<td>Free / Pro / Enterprise</td>
+<td>Free tier: 50 scans/month; Pro: unlimited scans + analytics; Enterprise: custom</td>
+</tr>
+<tr>
+<td><strong>Per-Scan Pricing</strong></td>
+<td>Pay-as-you-go</td>
+<td>API customers pay per document scanned</td>
+</tr>
+<tr>
+<td><strong>Enterprise Licenses</strong></td>
+<td>Annual contract</td>
+<td>On-premise deployment for regulated industries</td>
+</tr>
+<tr>
+<td><strong>White-Label</strong></td>
+<td>Revenue share</td>
+<td>Licensed to messaging/email platforms as an embedded PII scanner</td>
+</tr>
+<tr>
+<td><strong>Compliance Consulting</strong></td>
+<td>Professional services</td>
+<td>DPDP Act compliance audits and integration support</td>
+</tr>
+</tbody>
+</table>
+<h3 id="-cost-structure">📉 Cost Structure</h3>
+<table>
+<thead>
+<tr>
+<th>Cost</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>LLM API Costs</strong></td>
+<td>OpenRouter API calls for summaries and RAG (per-token pricing)</td>
+</tr>
+<tr>
+<td><strong>Cloud Hosting</strong></td>
+<td>Servers, MongoDB Atlas, CDN bandwidth</td>
+</tr>
+<tr>
+<td><strong>ML Compute</strong></td>
+<td>Model training and inference (CPU-based currently)</td>
+</tr>
+<tr>
+<td><strong>Development</strong></td>
+<td>Engineering salaries, tools, and infrastructure</td>
+</tr>
+<tr>
+<td><strong>Security &amp; Compliance</strong></td>
+<td>Audits, certifications, legal counsel</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="9-folder-structure">9. Folder Structure</h2>
+<pre class="hljs"><code><div>CipherX/
+├── backend/                    # Node.js Express Server
+│   ├── app.js                  # Main server entry point (Express + Socket.IO)
+│   ├── config/
+│   │   ├── db.js               # MongoDB connection
+│   │   └── passport.js         # Google OAuth strategy
+│   ├── controllers/            # Route handlers
+│   ├── middleware/
+│   │   └── auth.js             # JWT authentication middleware
+│   ├── models/
+│   │   ├── User.js             # User schema
+│   │   ├── Room.js             # Chat room schema
+│   │   ├── Message.js          # Message schema
+│   │   └── SensitiveLog.js     # PII audit log schema
+│   ├── routes/
+│   │   ├── authRoutes.js       # Login, Register, Google OAuth
+│   │   ├── scan.js             # PII scanning (Regex + ML merge)
+│   │   ├── upload.js           # File upload handler
+│   │   ├── analytics.js        # PII exposure analytics
+│   │   ├── rag.js              # RAG proxy to Python service
+│   │   ├── room.js             # Chat room CRUD
+│   │   └── user.js             # User profile
+│   ├── uploads/                # Stored uploaded files
+│   └── eng.traineddata         # Tesseract OCR language data
+│
+├── frontend/                   # React + Vite SPA
+│   └── src/
+│       ├── App.jsx             # Root component with routing
+│       ├── main.jsx            # React DOM entry point
+│       ├── pages/
+│       │   ├── Home.jsx        # Main dashboard (chat + file intel)
+│       │   ├── Login.jsx       # Login page
+│       │   └── Register.jsx    # Registration page
+│       ├── context/            # React context providers
+│       ├── css/                # Stylesheets
+│       └── assets/             # Static assets
+│
+├── rag/                        # Python FastAPI ML Service
+│   ├── app.py                  # FastAPI entry point
+│   ├── src/
+│   │   ├── pii_detector.py     # ML PII detection (RandomForest + post-processing)
+│   │   ├── pii_model.pkl       # Serialized ML pipeline
+│   │   ├── search.py           # RAG search + LLM streaming
+│   │   ├── vectorstore.py      # FAISS vector store wrapper
+│   │   ├── embedding.py        # SentenceTransformer embeddings
+│   │   └── data_loader.py      # File ingestion (text, PDF)
+│   ├── faiss_store/            # Per-user FAISS indexes
+│   └── data/                   # Training data
+│
+└── mongodb-data/               # Local MongoDB data directory
+</div></code></pre>
+<hr>
+<h2 id="10-research-contributions">10. Research Contributions</h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Contribution</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Hybrid PII Detection</strong></td>
+<td>Novel architecture combining deterministic regex (precision) with contextual ML classification (recall), using a priority-based merge with digit-claiming deduplication</td>
+</tr>
+<tr>
+<td><strong>Structural Post-Processing</strong></td>
+<td>ML predictions validated against format-specific rules (digit counts, date patterns, PAN structure), correcting model misclassifications without retraining</td>
+</tr>
+<tr>
+<td><strong>Context-Gated Detection</strong></td>
+<td>OTP and Bank Account detection gated by surrounding keyword analysis, with explicit pincode/postal exclusion logic</td>
+</tr>
+<tr>
+<td><strong>User-Controlled Privacy</strong></td>
+<td>Shift from all-or-nothing encryption to granular, per-item masking — users retain control over what is shared</td>
+</tr>
+<tr>
+<td><strong>Per-User RAG</strong></td>
+<td>Isolated FAISS vector stores per user, enabling private document Q&amp;A without cross-user data leakage</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<blockquote>
+<p><strong>CipherX</strong> — <em>Privacy by Intelligence, Security by Design.</em></p>
+</blockquote>
+
+</body>
+</html>

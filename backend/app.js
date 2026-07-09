@@ -8,6 +8,7 @@ const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 
 const { connectToDatabase } = require("./config/db");
 const authRoutes = require("./routes/authRoutes");
@@ -83,7 +84,7 @@ io.use(async (socket, next) => {
 
     socket.user = {
       id: payload.id,
-      name: payload.name,
+      name: payload.name || payload.username || "User",
     };
 
     next();
@@ -146,8 +147,6 @@ io.on("connection", async (socket) => {
   });
 
   // Send message
-  const mongoose = require("mongoose");
-
 socket.on("message:send", async ({ roomId, content, type }) => {
   try {
     // 🚫 BLOCK AI CHAT (cipherx)
@@ -220,7 +219,7 @@ socket.on("message:send", async ({ roomId, content, type }) => {
 const scanRoutes = require("./routes/scan"); // adjust path
 
 app.use("/api", scanRoutes);
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 const uploadRoutes = require("./routes/upload");
 
 app.use("/api/upload", uploadRoutes);

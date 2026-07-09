@@ -30,10 +30,13 @@ class FileIngest(BaseModel):
     filePath: str
     userId: str
 
+class PiiRequest(BaseModel):
+    text: str
+
 # ✅ Health check
 @app.get("/")
 def root():
-    return {"message": "RAG API running 🚀"}
+    return {"message": "RAG API running"}
 
 # ✅ Query endpoint
 @app.post("/query")
@@ -46,7 +49,7 @@ def query_rag(q: Query):
         return StreamingResponse(stream, media_type="text/plain")
 
     except Exception as e:
-        print("❌ QUERY ERROR:", str(e))
+        print("[ERROR] QUERY ERROR:", str(e))
         return StreamingResponse(
             iter(["AI failed to respond"]),
             media_type="text/plain"
@@ -58,5 +61,16 @@ def ingest(data: FileIngest):
         rag = RAGSearch(user_id=data.userId)
         return rag.ingest_file(data.filePath)
     except Exception as e:
-        print("❌ INGEST ERROR:", str(e))
+        print("[ERROR] INGEST ERROR:", str(e))
         return {"error": str(e)}
+
+# ✅ ML PII Detection endpoint
+@app.post("/detect-pii")
+def detect_pii(req: PiiRequest):
+    try:
+        from src.pii_detector import detector
+        detected = detector.detect(req.text)
+        return {"detected": detected}
+    except Exception as e:
+        print("[ERROR] ML DETECT PII ERROR:", str(e))
+        return {"error": str(e), "detected": []}

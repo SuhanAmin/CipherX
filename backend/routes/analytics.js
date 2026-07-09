@@ -3,7 +3,7 @@ const router = express.Router();
 const SensitiveLog = require("../models/SensitiveLog");
 const { authenticate } = require("../middleware/auth");
 
-const VALID_TYPES = ["phone", "email", "pan", "aadhaar", "bank"];
+const VALID_TYPES = ["phone", "email", "pan", "aadhaar", "bank", "dob", "otp"];
 
 // Log unmasked sensitive data sent by user
 router.post("/log", authenticate, async (req, res) => {
